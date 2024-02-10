@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 import "../src/contracts/examples/ExampleERC404.sol";
 
 contract Erc404Test is Test {
-    ExampleERC404 public pandora;
+    ExampleERC404 public simpleContract_;
 
     string name_ = "Example";
     string symbol_ = "EXM";
@@ -16,18 +16,19 @@ contract Erc404Test is Test {
     address initialMintRecipient_ = address(0x2);
 
     function setUp() public {
-        pandora = new ExampleERC404(name_, symbol_, decimals_, maxTotalSupplyNft_, initialOwner_, initialMintRecipient_);
+        simpleContract_ =
+            new ExampleERC404(name_, symbol_, decimals_, maxTotalSupplyNft_, initialOwner_, initialMintRecipient_);
     }
 
     function test_initializeSimple() public {
-        assertEq(pandora.name(), name_);
-        assertEq(pandora.symbol(), symbol_);
-        assertEq(pandora.decimals(), decimals_);
-        assertEq(pandora.owner(), initialOwner_);
+        assertEq(simpleContract_.name(), name_);
+        assertEq(simpleContract_.symbol(), symbol_);
+        assertEq(simpleContract_.decimals(), decimals_);
+        assertEq(simpleContract_.owner(), initialOwner_);
 
         // initial balance is 100 ** decimals ERC20, but 0 NFT
         // ExampleERC404.sol:L18
-        assertEq(pandora.balanceOf(initialMintRecipient_), maxTotalSupplyNft_ * 10 ** decimals_);
-        assertEq(pandora.owned(initialMintRecipient_).length, 0);
+        assertEq(simpleContract_.balanceOf(initialMintRecipient_), maxTotalSupplyNft_ * 10 ** decimals_);
+        assertEq(simpleContract_.owned(initialMintRecipient_).length, 0);
     }
 }
