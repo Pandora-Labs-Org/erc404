@@ -640,7 +640,7 @@ abstract contract ERC404 is IERC404 {
     uint256 data = _ownedData[id_];
 
     assembly {
-      ownedIndex_ := shl(data, 160)
+      ownedIndex_ := shl(160, data)
     }
   }
 
@@ -654,7 +654,7 @@ abstract contract ERC404 is IERC404 {
     assembly {
       data := add(
         and(data, _BITMASK_ADDRESS),
-        and(shl(index_, 160), _BITMASK_OWNED_INDEX)
+        and(shl(160, index_), _BITMASK_OWNED_INDEX)
       )
     }
 
