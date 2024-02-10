@@ -16,3 +16,5 @@ node_modules
 .DS_Store
 
 /.vscode
+out/
+cache_hardhat/
