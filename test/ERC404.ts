@@ -52,11 +52,11 @@ describe("ERC404", function () {
   }
 
   async function getPermitSignature(
-    contractAddress: string, 
-    msgSender: any, 
-    spender: any, 
-    value: bigint, 
-    nonce: bigint, 
+    contractAddress: string,
+    msgSender: any,
+    spender: any,
+    value: bigint,
+    nonce: bigint,
     deadline: bigint
   ) {
     const domain = {
@@ -65,31 +65,31 @@ describe("ERC404", function () {
       chainId: network.config.chainId as number,
       verifyingContract: contractAddress
     }
-  
+
     const types = {
       Permit: [{
-          name: "owner",
-          type: "address"
-        },
-        {
-          name: "spender",
-          type: "address"
-        },
-        {
-          name: "value",
-          type: "uint256"
-        },
-        {
-          name: "nonce",
-          type: "uint256"
-        },
-        {
-          name: "deadline",
-          type: "uint256"
-        },
+        name: "owner",
+        type: "address"
+      },
+      {
+        name: "spender",
+        type: "address"
+      },
+      {
+        name: "value",
+        type: "uint256"
+      },
+      {
+        name: "nonce",
+        type: "uint256"
+      },
+      {
+        name: "deadline",
+        type: "uint256"
+      },
       ],
     }
-  
+
     // set the Permit type values
     const values = {
       owner: msgSender.address,
@@ -98,10 +98,10 @@ describe("ERC404", function () {
       nonce: nonce,
       deadline: deadline,
     }
-  
+
     // sign the Permit type data with the deployer's private key
     const signature = await msgSender.signTypedData(domain, types, values)
-  
+
     // split the signature into its components
     return ethers.Signature.from(signature)
   }
@@ -881,11 +881,11 @@ describe("ERC404", function () {
     })
   })
 
-  describe.skip("#transferFrom", function () {})
+  describe.skip("#transferFrom", function () { })
 
-  describe.skip("#erc721BalanceOf", function () {})
+  describe.skip("#erc721BalanceOf", function () { })
 
-  describe.skip("#erc20BalanceOf", function () {})
+  describe.skip("#erc20BalanceOf", function () { })
 
   describe("#setApprovalForAll", function () {
     context(

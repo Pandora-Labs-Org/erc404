@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
 import "../src/examples/ExampleERC404.sol";
+import "../src/interfaces/IERC404.sol";
 
 contract Erc404Test is Test {
     ExampleERC404 public simpleContract_;
@@ -53,6 +54,21 @@ contract Erc404Test is Test {
         vm.prank(initialMintRecipient_);
         simpleContract_.transfer(alice, nftToTransfer * units_);
 
+        // Returns the correct total supply
         assertEq(simpleContract_.erc721TotalSupply(), nftToTransfer);
+        assertEq(simpleContract_.totalSupply(), maxTotalSupplyNft_ * units_);
+        assertEq(simpleContract_.erc20TotalSupply(), maxTotalSupplyNft_ * units_);
+
+        // Reverts if the token ID is 0
+        vm.expectRevert(IERC404.NotFound.selector);
+        simpleContract_.ownerOf(0);
+
+        // Reverts if the token ID is `nftToTransfer + 1` (does not exist)
+        vm.expectRevert(IERC404.NotFound.selector);
+        simpleContract_.ownerOf(nftToTransfer + 1);
+
+        for (uint8 i = 1; i <= nftToTransfer; i++) {
+            assertEq(simpleContract_.ownerOf(i), alice);
+        }
     }
 }
