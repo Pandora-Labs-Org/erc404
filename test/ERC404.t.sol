@@ -908,7 +908,27 @@ contract Erc404RetrieveOrMint721Test is Test {
     }
 }
 
-contract Erc404E2ETest is Test {}
+contract Erc404E2ETest is Test {
+    MinimalERC404 public minimalContract_;
+
+    string name_ = "Example";
+    string symbol_ = "EXM";
+    uint8 decimals_ = 18;
+    // uint256 units_ = 10 ** decimals_;
+    // uint256 maxTotalSupplyNft_ = 100;
+    // uint256 maxTotalSupplyCoin_ = maxTotalSupplyNft_ * units_;
+
+    address initialOwner_ = address(0x1);
+
+    // event ERC721Transfer(address indexed from, address indexed to, uint256 indexed id);
+    // event ERC20Transfer(address indexed from, address indexed to, uint256 amount);
+
+    function setUp() public {
+        minimalContract_ = new MinimalERC404(name_, symbol_, decimals_, initialOwner_);
+    }
+
+    function test_mintFull_transfer20_transfer721_bankRetrieve_setRemoveWhitelist() public {}
+}
 
 contract Erc404SetApprovalTest is Test {}
 
