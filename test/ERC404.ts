@@ -817,7 +817,7 @@ describe("ERC404", function () {
     })
   })
 
-  describe.only("#transferFrom", function () {
+  describe("#transferFrom", function () {
     it("Doesn't allow anyone to transfer from 0x0", async function () {
       const f = await loadFixture(deployExampleERC404)
 
