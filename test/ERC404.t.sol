@@ -722,3 +722,74 @@ contract Erc404Erc20BalanceOf is Test {
         assertEq(simpleContract_.erc20BalanceOf(alice), transferAmount * 2);
     }
 }
+
+contract Erc404SetApprovalForAll is Test {
+    ExampleERC404 public simpleContract_;
+
+    string name_ = "Example";
+    string symbol_ = "EXM";
+    uint8 decimals_ = 18;
+    uint256 maxTotalSupplyNft_ = 100;
+    uint256 units_ = 10 ** decimals_;
+
+    address initialOwner_ = address(0x1);
+    address initialMintRecipient_ = initialOwner_;
+
+    event ApprovalForAll(address indexed _owner, address indexed _operator, bool _approved);
+
+    function setUp() public {
+        simpleContract_ =
+            new ExampleERC404(name_, symbol_, decimals_, maxTotalSupplyNft_, initialOwner_, initialMintRecipient_);
+    }
+
+    // Granting approval to a valid address besides themselves
+    function test_approvalOperator_setApprovalForAll(address intendedOperator) public {
+        // Allows a user to set an operator who has approval for all their ERC-721 tokens
+        assertEq(simpleContract_.isApprovedForAll(initialOwner_, intendedOperator), false);
+
+        // Approve for all
+        // Expected Events
+        vm.expectEmit(false, false, false, false);
+        emit ApprovalForAll(initialOwner_, intendedOperator, true);
+        // Tx
+        vm.prank(initialOwner_);
+        simpleContract_.setApprovalForAll(intendedOperator, true);
+    }
+
+    function test_approvalOperator_removeOperatorApprovalForAll(address intendedOperator) public {
+        test_approvalOperator_setApprovalForAll(intendedOperator);
+        vm.prank(initialOwner_);
+        simpleContract_.setApprovalForAll(intendedOperator, false);
+
+        assertEq(simpleContract_.isApprovedForAll(initialOwner_, intendedOperator), false);
+    }
+
+    // Granting approval to themselves
+    function test_approvalSelf_all721() public {
+        // Allows a user to set themselves as an operator who has approval for all their ERC-721 tokens
+        assertFalse(simpleContract_.isApprovedForAll(initialOwner_, initialOwner_));
+        vm.prank(initialOwner_);
+        simpleContract_.setApprovalForAll(initialOwner_, true);
+        assertTrue(simpleContract_.isApprovedForAll(initialOwner_, initialOwner_));
+    }
+
+    function test_approvalSelf_removeApproval() public {
+        // Allows a user to remove their own approval for all
+        test_approvalSelf_all721();
+        vm.prank(initialOwner_);
+        simpleContract_.setApprovalForAll(initialOwner_, false);
+        assertFalse(simpleContract_.isApprovedForAll(initialOwner_, initialOwner_));
+    }
+
+    // Granting approval to 0x0
+    function test_reverts_approvalZero() public {
+        // Reverts if the user attempts to grant or revoke approval for all to 0x0
+        vm.expectRevert(IERC404.InvalidOperator.selector);
+        vm.prank(initialOwner_);
+        simpleContract_.setApprovalForAll(address(0), true);
+
+        vm.expectRevert(IERC404.InvalidOperator.selector);
+        vm.prank(initialOwner_);
+        simpleContract_.setApprovalForAll(address(0), false);
+    }
+}
