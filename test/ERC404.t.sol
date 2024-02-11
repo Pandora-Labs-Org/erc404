@@ -568,7 +568,7 @@ contract ERC404TransferLogicTest is Test {
     }
 }
 
-contract Erc404SetWhitelist is Test {
+contract Erc404SetWhitelistTest is Test {
     ExampleERC404 public simpleContract_;
 
     string name_ = "Example";
@@ -633,7 +633,7 @@ contract Erc404SetWhitelist is Test {
     }
 }
 
-contract Erc404Erc721BalanceOf is Test {
+contract Erc404Erc721BalanceOfTest is Test {
     ExampleERC404 public simpleContract_;
 
     string name_ = "Example";
@@ -690,7 +690,7 @@ contract Erc404Erc721BalanceOf is Test {
     }
 }
 
-contract Erc404Erc20BalanceOf is Test {
+contract Erc404Erc20BalanceOfTest is Test {
     ExampleERC404 public simpleContract_;
 
     string name_ = "Example";
@@ -723,7 +723,7 @@ contract Erc404Erc20BalanceOf is Test {
     }
 }
 
-contract Erc404SetApprovalForAll is Test {
+contract Erc404SetApprovalForAllTest is Test {
     ExampleERC404 public simpleContract_;
 
     string name_ = "Example";
@@ -744,6 +744,7 @@ contract Erc404SetApprovalForAll is Test {
 
     // Granting approval to a valid address besides themselves
     function test_approvalOperator_setApprovalForAll(address intendedOperator) public {
+        vm.assume(intendedOperator != address(0));
         // Allows a user to set an operator who has approval for all their ERC-721 tokens
         assertEq(simpleContract_.isApprovedForAll(initialOwner_, intendedOperator), false);
 
@@ -791,5 +792,71 @@ contract Erc404SetApprovalForAll is Test {
         vm.expectRevert(IERC404.InvalidOperator.selector);
         vm.prank(initialOwner_);
         simpleContract_.setApprovalForAll(address(0), false);
+    }
+}
+
+contract Erc404RetrieveOrMintTest is Test {
+    MinimalERC404 public minimalContract_;
+
+    string name_ = "Example";
+    string symbol_ = "EXM";
+    uint8 decimals_ = 18;
+    uint256 units_ = 10 ** decimals_;
+
+    address initialOwner_ = address(0x1);
+
+    function setUp() public {
+        minimalContract_ = new MinimalERC404(name_, symbol_, decimals_, initialOwner_);
+    }
+
+    // When the contract has no tokens in the queue
+
+    // - Contract ERC-721 balance is 0
+
+    function test_balanceZero_mintFull20And721() public {
+        // Mints a new full ERC-20 token + corresponding ERC-721 token
+        assertEq(minimalContract_.balanceOf(address(minimalContract_)), 0);
+        assertEq(minimalContract_.erc721TokensBankedInQueue(), 0);
+        assertEq(minimalContract_.erc721TotalSupply(), 0);
+
+        vm.prank(initialOwner_);
+        minimalContract_.mintERC20(initialOwner_, units_, true);
+
+        assertEq(minimalContract_.erc721TotalSupply(), 1);
+    }
+
+    // - Contract ERC-721 balance is > 0
+    function test_balanceGtZero_mintFull20And721() public {
+        // Mints a new full ERC-20 token + corresponding ERC-721 token
+        test_balanceZero_mintFull20And721();
+
+        // Transfer the factional token to the contract
+        vm.prank(initialOwner_);
+        minimalContract_.transferFrom(initialOwner_, address(minimalContract_), 1);
+
+        assertEq(minimalContract_.erc721BalanceOf(address(minimalContract_)), 1);
+
+        // Expect the contract to have 0 ERC-721 token in the queue
+        assertEq(minimalContract_.erc721TokensBankedInQueue(), 0);
+
+        // Expect the contract to own token 1
+        assertEq(minimalContract_.ownerOf(1), address(minimalContract_));
+
+        // Mint a new full ERC-20 token + corresponding ERC-721 token
+        vm.prank(initialOwner_);
+        minimalContract_.mintERC20(initialOwner_, units_, true);
+
+        assertEq(minimalContract_.erc721TotalSupply(), 2);
+
+        // Expect the contract to still own token 1
+        assertEq(minimalContract_.ownerOf(1), address(minimalContract_));
+        // Expect the mint recipient to have have a balance of 1 ERC-721 token        assertEq(minimalContract_.erc721BalanceOf(address(minimalContract_)), 1);
+        assertEq(minimalContract_.erc721BalanceOf(address(initialOwner_)), 1);
+
+        // Expect the contract to have an ERC-20 balance of 1 full token
+        assertEq(minimalContract_.erc20BalanceOf(address(minimalContract_)), units_);
+
+        // Expect the mint recipient to be the owner of token 2
+        assertEq(minimalContract_.ownerOf(2), address(initialOwner_));
     }
 }
