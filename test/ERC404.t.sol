@@ -860,3 +860,9 @@ contract Erc404RetrieveOrMint721Test is Test {
         assertEq(minimalContract_.ownerOf(2), address(initialOwner_));
     }
 }
+
+contract Erc404E2ETest is Test {}
+
+contract Erc404SetApprovalTest is Test {}
+
+contract Erc404PermitTest is Test {}
