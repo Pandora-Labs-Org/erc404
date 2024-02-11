@@ -908,6 +908,70 @@ contract Erc404RetrieveOrMint721Test is Test {
     }
 }
 
+contract Erc404SetApprovalTest is Test {
+    MinimalERC404 public minimalContract_;
+
+    string name_ = "Example";
+    string symbol_ = "EXM";
+    uint8 decimals_ = 18;
+    uint256 units_ = 10 ** decimals_;
+    uint256 maxTotalSupplyNft_ = 100;
+    uint256 maxTotalSupplyCoin_ = maxTotalSupplyNft_ * units_;
+
+    address initialOwner_ = address(0x1);
+
+    event ERC721Approval(address indexed owner, address indexed spender, uint256 indexed id);
+    event ERC20Approval(address indexed owner, address indexed spender, uint256 amount);
+
+    function setUp() public {
+        minimalContract_ = new MinimalERC404(name_, symbol_, decimals_, initialOwner_);
+        vm.prank(initialOwner_);
+        minimalContract_.mintERC20(initialOwner_, maxTotalSupplyCoin_, true);
+    }
+
+    // Granting approval for ERC-721 tokens
+    function test_grantSpecific721Approval(address intendedOperator) public {
+        vm.assume(
+            intendedOperator != address(0) && intendedOperator != address(minimalContract_)
+                && intendedOperator != initialOwner_
+        );
+        assertEq(minimalContract_.ownerOf(1), initialOwner_);
+        // Approve ERC721
+        // Expected events
+        vm.expectEmit();
+        emit ERC721Approval(initialOwner_, intendedOperator, 1);
+        // Tx
+        vm.prank(initialOwner_);
+        minimalContract_.approve(intendedOperator, 1);
+
+        assertEq(minimalContract_.getApproved(1), intendedOperator);
+
+        // Confirm that a corresponding ERC-20 approval for the ERC-721 token was not set.
+        assertEq(minimalContract_.allowance(initialOwner_, intendedOperator), 0);
+
+        // assertEq(minimalContract_.allowance(initialOwner_, intendedOperator), 0);
+
+        // uint256 minted = minimalContract_.erc721TotalSupply();
+        // uint256 allowanceToSet = minted + 1;
+
+        // assertGe(minimalContract_.balanceOf(initialOwner_), allowanceToSet);
+
+        // // Approve ERC20
+        // // Expected events
+        // vm.expectEmit();
+        // emit ERC20Approval(initialOwner_, intendedOperator, allowanceToSet);
+        // // Tx
+        // // Set an allowance. Must be greater than minted to be considered an ERC-20 allowance.
+        // vm.prank(initialOwner_);
+        // minimalContract_.approve(intendedOperator, allowanceToSet);
+
+        // assertEq(minimalContract_.allowance(initialOwner_, intendedOperator), allowanceToSet);
+        // assertEq(minimalContract_.getApproved(allowanceToSet), address(0));
+    }
+}
+
+contract Erc404PermitTest is Test {}
+
 contract Erc404E2ETest is Test {
     MinimalERC404 public minimalContract_;
 
@@ -929,7 +993,3 @@ contract Erc404E2ETest is Test {
 
     function test_mintFull_transfer20_transfer721_bankRetrieve_setRemoveWhitelist() public {}
 }
-
-contract Erc404SetApprovalTest is Test {}
-
-contract Erc404PermitTest is Test {}
