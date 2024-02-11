@@ -968,6 +968,16 @@ contract Erc404SetApprovalTest is Test {
         // assertEq(minimalContract_.allowance(initialOwner_, intendedOperator), allowanceToSet);
         // assertEq(minimalContract_.getApproved(allowanceToSet), address(0));
     }
+
+    function test_revokeSpecific721Approval(address intendedOperator) public {
+        test_grantSpecific721Approval(intendedOperator);
+        vm.prank(initialOwner_);
+        minimalContract_.approve(address(0), 1);
+        assertEq(minimalContract_.getApproved(1), address(0));
+    }
+
+    function test_operatorGrantSpecificAfterApprovalForAll() public {}
+    function test_grant20Approval() public {}
 }
 
 contract Erc404PermitTest is Test {}
