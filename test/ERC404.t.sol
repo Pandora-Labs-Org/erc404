@@ -121,6 +121,24 @@ contract Erc404Test is Test {
         vm.prank(initialOwner_);
         simpleContract_.transferFrom(address(0), address(0), 1);
     }
+
+    function test_setWhitelist_ownerAddAndRemove(address a) public {
+        vm.assume(a != initialMintRecipient_);
+        vm.assume(!simpleContract_.whitelist(a));
+        assertFalse(simpleContract_.whitelist(a));
+
+        // Add a random address to the whitelist
+        vm.prank(initialOwner_);
+        simpleContract_.setWhitelist(a, true);
+
+        assertTrue(simpleContract_.whitelist(a));
+
+        // Remove the random address from the whitelist
+        vm.prank(initialOwner_);
+        simpleContract_.setWhitelist(a, false);
+
+        assertFalse(simpleContract_.whitelist(a));
+    }
 }
 
 // deployMinimalERC404
