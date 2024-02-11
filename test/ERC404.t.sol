@@ -671,3 +671,36 @@ contract Erc404Erc721BalanceOf is Test {
         assertEq(simpleContract_.erc721BalanceOf(alice), 1);
     }
 }
+
+contract Erc404Erc20BalanceOf is Test {
+    ExampleERC404 public simpleContract_;
+
+    string name_ = "Example";
+    string symbol_ = "EXM";
+    uint8 decimals_ = 18;
+    uint256 maxTotalSupplyNft_ = 100;
+    uint256 units_ = 10 ** decimals_;
+
+    address initialOwner_ = address(0x1);
+    address initialMintRecipient_ = initialOwner_;
+
+    function setUp() public {
+        simpleContract_ =
+            new ExampleERC404(name_, symbol_, decimals_, maxTotalSupplyNft_, initialOwner_, initialMintRecipient_);
+    }
+
+    function test_balanceOf() public {
+        address alice = address(0xa);
+        uint256 transferAmount = units_ * 9 / 10;
+
+        vm.prank(initialOwner_);
+        simpleContract_.transfer(alice, transferAmount);
+
+        assertEq(simpleContract_.erc20BalanceOf(alice), transferAmount);
+
+        vm.prank(initialOwner_);
+        simpleContract_.transfer(alice, transferAmount);
+
+        assertEq(simpleContract_.erc20BalanceOf(alice), transferAmount * 2);
+    }
+}
