@@ -166,7 +166,6 @@ contract Erc404Test is Test {
     }
 }
 
-// deployMinimalERC404
 contract Erc404MinimalTest is Test {
     MinimalERC404 public minimalContract_;
 
