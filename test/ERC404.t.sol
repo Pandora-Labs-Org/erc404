@@ -96,17 +96,6 @@ contract Erc404Test is Test {
         simpleContract_.transferFrom(initialMintRecipient_, address(0), 1);
     }
 
-    function test_revert_transfer_toZero() public {
-        // Doesn't allow anyone to transfer to 0x0
-        vm.expectRevert(IERC404.InvalidRecipient.selector);
-        vm.prank(initialMintRecipient_);
-        simpleContract_.transfer(address(0), 1);
-
-        vm.expectRevert(IERC404.InvalidRecipient.selector);
-        vm.prank(initialOwner_);
-        simpleContract_.transfer(address(0), 1);
-    }
-
     function test_revert_transferToAndFromZero() public {
         // Doesn't allow anyone to transfer from 0x0 to 0x0
         vm.expectRevert(IERC404.InvalidSender.selector);
@@ -565,6 +554,38 @@ contract ERC404TransferLogicTest is Test {
 
         assertEq(aliceAfterBalanceErc721, aliceStartingBalanceErc721 - 4);
         assertEq(bobAfterBalanceErc721, bobStartingBalanceErc721 + 4);
+    }
+}
+
+contract ERC404TransferTest is Test {
+    ExampleERC404 public simpleContract_;
+
+    string name_ = "Example";
+    string symbol_ = "EXM";
+    uint8 decimals_ = 18;
+    uint256 maxTotalSupplyNft_ = 100;
+    uint256 units_ = 10 ** decimals_;
+
+    address initialOwner_ = address(0x1);
+    address initialMintRecipient_ = initialOwner_;
+
+    function setUp() public {
+        simpleContract_ =
+            new ExampleERC404(name_, symbol_, decimals_, maxTotalSupplyNft_, initialOwner_, initialMintRecipient_);
+    }
+
+    function test_revert_transfer_toZero() public {
+        // Doesn't allow anyone to transfer to 0x0
+
+        // Attempt to send 1 ERC-721 to 0x0.
+        vm.expectRevert(IERC404.InvalidRecipient.selector);
+        vm.prank(initialOwner_);
+        simpleContract_.transfer(address(0), 1);
+
+        // Attempt to send 1 full token worth of ERC-20s to 0x0
+        vm.expectRevert(IERC404.InvalidRecipient.selector);
+        vm.prank(initialOwner_);
+        simpleContract_.transfer(address(0), units_);
     }
 }
 
