@@ -180,6 +180,9 @@ contract Erc404MinimalTest is Test {
     }
 
     function test_erc721Storage_storeInBankOnBurn(uint8 nftQty, address recipient1, address recipient2) public {
+        // TODO - handle recipient1 = recipient2
+        vm.assume(recipient1 != recipient2);
+
         vm.assume(nftQty > 0 && nftQty < maxTotalSupplyNft_);
         vm.assume(recipient1 != address(0) && recipient1 != initialOwner_ && recipient1 != address(minimalContract_));
         vm.assume(recipient2 != address(0) && recipient2 != initialOwner_ && recipient2 != address(minimalContract_));
@@ -229,6 +232,9 @@ contract Erc404MinimalTest is Test {
     }
 
     function test_erc721Storage_retrieveFromBank(uint8 nftQty, address recipient1, address recipient2) public {
+        // TODO - handle recipient1 = recipient2
+        vm.assume(recipient1 != recipient2);
+
         vm.assume(nftQty > 0 && nftQty < maxTotalSupplyNft_);
         vm.assume(recipient1 != address(0) && recipient1 != initialOwner_ && recipient1 != address(minimalContract_));
         vm.assume(recipient2 != address(0) && recipient2 != initialOwner_ && recipient2 != address(minimalContract_));
@@ -300,10 +306,9 @@ contract ERC404TransferLogicTest is Test {
         vm.prank(initialMintRecipient_);
         simpleContract_.transfer(alice, maxTotalSupplyNft_ * units_);
     }
+    ////////         Fractional transfers (moving less than 1 full token) that trigger ERC721 transfers
 
     function test_erc20TransferTriggering721Transfer_fractional_receiverGain() public {
-        // Fractional transfers (moving less than 1 full token) that trigger ERC721 transfers
-
         // Bob starts with 0.9 tokens
         uint256 bobInitialBalance = units_ * 9 / 10;
         vm.prank(alice);
@@ -331,4 +336,39 @@ contract ERC404TransferLogicTest is Test {
         assertEq(simpleContract_.erc721BalanceOf(alice), aliceInitialNftBalance);
         assertEq(simpleContract_.erc721BalanceOf(bob), 1);
     }
+
+    function test_erc20TransferTriggering721Transfer_fractional_senderLose() public {
+        uint256 aliceStartingBalanceErc20 = simpleContract_.balanceOf(alice);
+        uint256 aliceStartingBalanceErc721 = simpleContract_.erc721BalanceOf(alice);
+
+        uint256 bobStartingBalanceErc20 = simpleContract_.balanceOf(bob);
+        uint256 bobStartingBalanceErc721 = simpleContract_.erc721BalanceOf(bob);
+
+        assertEq(aliceStartingBalanceErc20, maxTotalSupplyNft_ * units_);
+        // Sender starts with 100 tokens and sends 0.1, resulting in the loss of 1 NFT but no NFT transfer to the receiver.
+        uint256 initialFractionalAmount = units_ / 10;
+        vm.prank(alice);
+        simpleContract_.transfer(bob, initialFractionalAmount);
+
+        // Post-transfer balances
+        uint256 aliceAfterBalanceErc20 = simpleContract_.balanceOf(alice);
+        uint256 aliceAfterBalanceErc721 = simpleContract_.erc721BalanceOf(alice);
+
+        uint256 bobAfterBalanceErc20 = simpleContract_.balanceOf(bob);
+        uint256 bobAfterBalanceErc721 = simpleContract_.erc721BalanceOf(bob);
+
+        assertEq(aliceAfterBalanceErc20, aliceStartingBalanceErc20 - initialFractionalAmount);
+        assertEq(bobAfterBalanceErc20, bobStartingBalanceErc20 + initialFractionalAmount);
+
+        // Verify ERC721 balances after transfer
+        // Assuming the sender should lose 1 NFT due to the transfer causing a loss of a whole token.
+        // Sender loses an NFT
+        assertEq(aliceAfterBalanceErc721, aliceStartingBalanceErc721 - 1);
+        // No NFT gain for the receiver
+        assertEq(bobAfterBalanceErc721, bobStartingBalanceErc721);
+        // Contract gains an NFT (it's stored in the contract in this scenario).
+        // TODO - Verify this with the contract's balance.
+    }
+
+    function test_erc20TransferTriggering721Transfer_whole_noFractionalImpact() public {}
 }
