@@ -78,7 +78,7 @@ contract Erc404Test is Test {
         }
     }
 
-    function test_revert_transferFromZero() public {
+    function test_revert_transferFrom_fromZero() public {
         // Doesn't allow anyone to transfer from 0x0
         vm.expectRevert(IERC404.InvalidSender.selector);
         vm.prank(initialMintRecipient_);
@@ -89,8 +89,8 @@ contract Erc404Test is Test {
         simpleContract_.transferFrom(address(0), initialMintRecipient_, 1);
     }
 
-    function test_revert_transferToZero() public {
-        // Doesn't allow anyone to transfer to 0x0
+    function test_revert_transferFrom_toZero() public {
+        // Doesn't allow anyone to transferFrom to 0x0
         vm.expectRevert(IERC404.InvalidRecipient.selector);
         vm.prank(initialMintRecipient_);
         simpleContract_.transferFrom(initialMintRecipient_, address(0), 1);
@@ -98,6 +98,17 @@ contract Erc404Test is Test {
         vm.expectRevert(IERC404.InvalidRecipient.selector);
         vm.prank(initialOwner_);
         simpleContract_.transferFrom(initialMintRecipient_, address(0), 1);
+    }
+
+    function test_revert_transfer_toZero() public {
+        // Doesn't allow anyone to transfer to 0x0
+        vm.expectRevert(IERC404.InvalidRecipient.selector);
+        vm.prank(initialMintRecipient_);
+        simpleContract_.transfer(address(0), 1);
+
+        vm.expectRevert(IERC404.InvalidRecipient.selector);
+        vm.prank(initialOwner_);
+        simpleContract_.transfer(address(0), 1);
     }
 
     function test_revert_transferToAndFromZero() public {
@@ -393,6 +404,9 @@ contract Erc404MinimalTest is Test {
         vm.prank(operator);
         minimalContract_.transferFrom(wrongFrom, to, tokenId);
     }
+
+    // TODO: Reverts when operator has not been approved to move 'from''s token
+    // TODO: Allows an approved operator to transfer a token owned by 'from'
 }
 
 contract ERC404TransferLogicTest is Test {
