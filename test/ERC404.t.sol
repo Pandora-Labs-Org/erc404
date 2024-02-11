@@ -795,7 +795,7 @@ contract Erc404SetApprovalForAllTest is Test {
     }
 }
 
-contract Erc404RetrieveOrMintTest is Test {
+contract Erc404RetrieveOrMint721Test is Test {
     MinimalERC404 public minimalContract_;
 
     string name_ = "Example";
