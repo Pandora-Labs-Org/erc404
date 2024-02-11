@@ -18,3 +18,8 @@ node_modules
 /.vscode
 out/
 cache_hardhat/
+
+# Foundry
+cache_foundry/
+lcov.info
+report
