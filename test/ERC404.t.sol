@@ -117,53 +117,6 @@ contract Erc404Test is Test {
         vm.prank(initialOwner_);
         simpleContract_.transferFrom(address(0), address(0), 1);
     }
-
-    function test_setWhitelist_ownerAddAndRemove(address a) public {
-        vm.assume(a != initialMintRecipient_);
-        vm.assume(!simpleContract_.whitelist(a));
-        assertFalse(simpleContract_.whitelist(a));
-
-        // Add a random address to the whitelist
-        vm.prank(initialOwner_);
-        simpleContract_.setWhitelist(a, true);
-
-        assertTrue(simpleContract_.whitelist(a));
-
-        // Remove the random address from the whitelist
-        vm.prank(initialOwner_);
-        simpleContract_.setWhitelist(a, false);
-
-        assertFalse(simpleContract_.whitelist(a));
-    }
-
-    function test_revert_setWhitelist_removeAddressWithErc20Balance(address a) public {
-        // An address cannot be removed from the whitelist while it has an ERC-20 balance >= 1 full token.
-
-        vm.assume(a != initialMintRecipient_);
-        vm.assume(a != initialOwner_);
-        vm.assume(a != address(0));
-        vm.assume(!simpleContract_.whitelist(a));
-        assertFalse(simpleContract_.whitelist(a));
-
-        // Transfer 1 full NFT worth of tokens to that address.
-        vm.prank(initialMintRecipient_);
-        simpleContract_.transfer(a, units_);
-
-        assertEq(simpleContract_.erc721BalanceOf(a), 1);
-
-        // Add a random address to the whitelist
-        vm.prank(initialOwner_);
-        simpleContract_.setWhitelist(a, true);
-
-        assertTrue(simpleContract_.whitelist(a));
-
-        // Attempt to remove the random address from the whitelist
-        vm.expectRevert(IERC404.CannotRemoveFromWhitelist.selector);
-        vm.prank(initialOwner_);
-        simpleContract_.setWhitelist(a, false);
-
-        assertTrue(simpleContract_.whitelist(a));
-    }
 }
 
 contract Erc404MinimalTest is Test {
@@ -612,6 +565,71 @@ contract ERC404TransferLogicTest is Test {
 
         assertEq(aliceAfterBalanceErc721, aliceStartingBalanceErc721 - 4);
         assertEq(bobAfterBalanceErc721, bobStartingBalanceErc721 + 4);
+    }
+}
+
+contract Erc404SetWhitelist is Test {
+    ExampleERC404 public simpleContract_;
+
+    string name_ = "Example";
+    string symbol_ = "EXM";
+    uint8 decimals_ = 18;
+    uint256 maxTotalSupplyNft_ = 100;
+    uint256 units_ = 10 ** decimals_;
+
+    address initialOwner_ = address(0x1);
+    address initialMintRecipient_ = initialOwner_;
+
+    function setUp() public {
+        simpleContract_ =
+            new ExampleERC404(name_, symbol_, decimals_, maxTotalSupplyNft_, initialOwner_, initialMintRecipient_);
+    }
+
+    function test_setWhitelist_ownerAddAndRemove(address a) public {
+        vm.assume(a != initialMintRecipient_);
+        vm.assume(!simpleContract_.whitelist(a));
+        assertFalse(simpleContract_.whitelist(a));
+
+        // Add a random address to the whitelist
+        vm.prank(initialOwner_);
+        simpleContract_.setWhitelist(a, true);
+
+        assertTrue(simpleContract_.whitelist(a));
+
+        // Remove the random address from the whitelist
+        vm.prank(initialOwner_);
+        simpleContract_.setWhitelist(a, false);
+
+        assertFalse(simpleContract_.whitelist(a));
+    }
+
+    function test_revert_setWhitelist_removeAddressWithErc20Balance(address a) public {
+        // An address cannot be removed from the whitelist while it has an ERC-20 balance >= 1 full token.
+
+        vm.assume(a != initialMintRecipient_);
+        vm.assume(a != initialOwner_);
+        vm.assume(a != address(0));
+        vm.assume(!simpleContract_.whitelist(a));
+        assertFalse(simpleContract_.whitelist(a));
+
+        // Transfer 1 full NFT worth of tokens to that address.
+        vm.prank(initialMintRecipient_);
+        simpleContract_.transfer(a, units_);
+
+        assertEq(simpleContract_.erc721BalanceOf(a), 1);
+
+        // Add a random address to the whitelist
+        vm.prank(initialOwner_);
+        simpleContract_.setWhitelist(a, true);
+
+        assertTrue(simpleContract_.whitelist(a));
+
+        // Attempt to remove the random address from the whitelist
+        vm.expectRevert(IERC404.CannotRemoveFromWhitelist.selector);
+        vm.prank(initialOwner_);
+        simpleContract_.setWhitelist(a, false);
+
+        assertTrue(simpleContract_.whitelist(a));
     }
 }
 
