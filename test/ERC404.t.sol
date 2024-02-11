@@ -402,12 +402,43 @@ contract ERC404TransferLogicTest is Test {
         assertEq(bobAfterBalanceErc721, bobStartingBalanceErc721 + erc721TokensToTransfer);
     }
 
-    function test_erc20TransferTriggering721Transfer_whole_3_2_sender99_1_recipient_0_9() public {
+    function test_erc20TransferTriggering721Transfer_allCasesAtOnce() public {
         // Handles the case of sending 3.2 tokens where the sender started out with 99.1 tokens and the receiver started with 0.9 tokens
+        // This test demonstrates all 3 cases in one scenario:
+        // - The sender loses a partial token, dropping it below a full token (99.1 - 3.2 = 95.9)
+        // - The receiver gains a whole new token (0.9 + 3.2 (3 whole, 0.2 fractional) = 4.1)
+        // - The sender transfers 3 whole tokens to the receiver (99.1 - 3.2 (3 whole, 0.2 fractional) = 95.9)
+
+        uint256 bobStartingBalanceErc20 = units_ * 9 / 10;
+
+        vm.prank(alice);
+        simpleContract_.transfer(bob, bobStartingBalanceErc20);
+
         uint256 aliceStartingBalanceErc20 = simpleContract_.balanceOf(alice);
         uint256 aliceStartingBalanceErc721 = simpleContract_.erc721BalanceOf(alice);
-
-        uint256 bobStartingBalanceErc20 = simpleContract_.balanceOf(bob);
         uint256 bobStartingBalanceErc721 = simpleContract_.erc721BalanceOf(bob);
+
+        assertEq(bobStartingBalanceErc721, 0);
+
+        // Transfer an amount that results in:
+        // - the receiver gaining a whole new token (0.9 + 0.2 + 3)
+        // - the sender losing a partial token, dropping it below a full token (99.1 - 3.2 = 95.9)
+        uint256 fractionalValueToTransferERC20 = units_ * 32 / 10;
+        vm.prank(alice);
+        simpleContract_.transfer(bob, fractionalValueToTransferERC20);
+
+        // post transfer
+        // ERC20
+        uint256 aliceAfterBalanceErc20 = simpleContract_.balanceOf(alice);
+        uint256 bobAfterBalanceErc20 = simpleContract_.balanceOf(bob);
+        assertEq(aliceAfterBalanceErc20, aliceStartingBalanceErc20 - fractionalValueToTransferERC20);
+        assertEq(bobAfterBalanceErc20, bobStartingBalanceErc20 + fractionalValueToTransferERC20);
+
+        // ERC721
+        uint256 aliceAfterBalanceErc721 = simpleContract_.erc721BalanceOf(alice);
+        uint256 bobAfterBalanceErc721 = simpleContract_.erc721BalanceOf(bob);
+
+        assertEq(aliceAfterBalanceErc721, aliceStartingBalanceErc721 - 4);
+        assertEq(bobAfterBalanceErc721, bobStartingBalanceErc721 + 4);
     }
 }
