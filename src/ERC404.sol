@@ -410,7 +410,6 @@ abstract contract ERC404 is IERC404 {
       delete getApproved[id_];
 
       uint256 updatedId = _owned[from_][_owned[from_].length - 1];
-
       if (updatedId != id_) {
         uint256 updatedIndex = _getOwnedIndex(id_);
         // update _owned for sender
@@ -640,7 +639,7 @@ abstract contract ERC404 is IERC404 {
     uint256 data = _ownedData[id_];
 
     assembly {
-      ownedIndex_ := shl(160, data)
+      ownedIndex_ := shr(160, data)
     }
   }
 
