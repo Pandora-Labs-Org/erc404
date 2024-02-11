@@ -7,8 +7,6 @@ import "../src/mocks/MinimalERC404.sol";
 import {IERC404} from "../src/interfaces/IERC404.sol";
 import "../src/ERC404.sol";
 
-// deployExampleERC404
-// deployExampleERC404WithSomeTokensTransferredToRandomAddress
 contract Erc404Test is Test {
     ExampleERC404 public simpleContract_;
 
@@ -21,7 +19,6 @@ contract Erc404Test is Test {
     address initialOwner_ = address(0x1);
     address initialMintRecipient_ = address(0x2);
 
-    ///////////////////////////// deployMinimalERC404()
     function setUp() public {
         simpleContract_ =
             new ExampleERC404(name_, symbol_, decimals_, maxTotalSupplyNft_, initialOwner_, initialMintRecipient_);
@@ -36,7 +33,7 @@ contract Erc404Test is Test {
 
     function test_initialMint() public {
         // initial balance is 100 ** decimals ERC20, but 0 NFT
-        // ExampleERC404.sol:L18
+        // ExampleERC404.sol
         assertEq(simpleContract_.balanceOf(initialMintRecipient_), maxTotalSupplyNft_ * units_);
         assertEq(simpleContract_.owned(initialMintRecipient_).length, 0);
         // NFT minted count should be 0.
@@ -51,7 +48,6 @@ contract Erc404Test is Test {
         assertTrue(simpleContract_.whitelist(initialMintRecipient_));
     }
 
-    ///////////////////////////// deployExampleERC404WithSomeTokensTransferredToRandomAddress()
     function test_tokenTransfer(uint8 nftToTransfer, address randomAddress) public {
         vm.assume(nftToTransfer <= 100);
         vm.assume(randomAddress != address(0));
