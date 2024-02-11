@@ -306,7 +306,7 @@ contract ERC404TransferLogicTest is Test {
         vm.prank(initialMintRecipient_);
         simpleContract_.transfer(alice, maxTotalSupplyNft_ * units_);
     }
-    ////////         Fractional transfers (moving less than 1 full token) that trigger ERC721 transfers
+    //////// Fractional transfers (moving less than 1 full token) that trigger ERC721 transfers
 
     function test_erc20TransferTriggering721Transfer_fractional_receiverGain() public {
         // Bob starts with 0.9 tokens
@@ -370,5 +370,44 @@ contract ERC404TransferLogicTest is Test {
         // TODO - Verify this with the contract's balance.
     }
 
-    function test_erc20TransferTriggering721Transfer_whole_noFractionalImpact() public {}
+    //////// Moving one or more full tokens
+    function test_erc20TransferTriggering721Transfer_whole_noFractionalImpact() public {
+        // Transfers whole tokens without fractional impact correctly
+        uint256 aliceStartingBalanceErc20 = simpleContract_.balanceOf(alice);
+        uint256 aliceStartingBalanceErc721 = simpleContract_.erc721BalanceOf(alice);
+
+        uint256 bobStartingBalanceErc20 = simpleContract_.balanceOf(bob);
+        uint256 bobStartingBalanceErc721 = simpleContract_.erc721BalanceOf(bob);
+
+        // Transfer 2 whole tokens
+        uint256 erc721TokensToTransfer = 2;
+        uint256 valueToTransferERC20 = erc721TokensToTransfer * units_;
+
+        vm.prank(alice);
+        simpleContract_.transfer(bob, valueToTransferERC20);
+
+        // Post-transfer balances
+        uint256 aliceAfterBalanceErc20 = simpleContract_.balanceOf(alice);
+        uint256 aliceAfterBalanceErc721 = simpleContract_.erc721BalanceOf(alice);
+
+        uint256 bobAfterBalanceErc20 = simpleContract_.balanceOf(bob);
+        uint256 bobAfterBalanceErc721 = simpleContract_.erc721BalanceOf(bob);
+
+        // Verify ERC20 balances after transfer
+        assertEq(aliceAfterBalanceErc20, aliceStartingBalanceErc20 - valueToTransferERC20);
+        assertEq(bobAfterBalanceErc20, bobStartingBalanceErc20 + valueToTransferERC20);
+
+        // Verify ERC721 balances after transfer - Assuming 2 NFTs should have been transferred
+        assertEq(aliceAfterBalanceErc721, aliceStartingBalanceErc721 - erc721TokensToTransfer);
+        assertEq(bobAfterBalanceErc721, bobStartingBalanceErc721 + erc721TokensToTransfer);
+    }
+
+    function test_erc20TransferTriggering721Transfer_whole_3_2_sender99_1_recipient_0_9() public {
+        // Handles the case of sending 3.2 tokens where the sender started out with 99.1 tokens and the receiver started with 0.9 tokens
+        uint256 aliceStartingBalanceErc20 = simpleContract_.balanceOf(alice);
+        uint256 aliceStartingBalanceErc721 = simpleContract_.erc721BalanceOf(alice);
+
+        uint256 bobStartingBalanceErc20 = simpleContract_.balanceOf(bob);
+        uint256 bobStartingBalanceErc721 = simpleContract_.erc721BalanceOf(bob);
+    }
 }
