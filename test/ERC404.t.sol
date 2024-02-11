@@ -73,42 +73,9 @@ contract Erc404Test is Test {
             assertEq(simpleContract_.ownerOf(i), randomAddress);
         }
     }
-
-    function test_revert_transferFrom_fromZero() public {
-        // Doesn't allow anyone to transfer from 0x0
-        vm.expectRevert(IERC404.InvalidSender.selector);
-        vm.prank(initialMintRecipient_);
-        simpleContract_.transferFrom(address(0), initialMintRecipient_, 1);
-
-        vm.expectRevert(IERC404.InvalidSender.selector);
-        vm.prank(initialOwner_);
-        simpleContract_.transferFrom(address(0), initialMintRecipient_, 1);
-    }
-
-    function test_revert_transferFrom_toZero() public {
-        // Doesn't allow anyone to transferFrom to 0x0
-        vm.expectRevert(IERC404.InvalidRecipient.selector);
-        vm.prank(initialMintRecipient_);
-        simpleContract_.transferFrom(initialMintRecipient_, address(0), 1);
-
-        vm.expectRevert(IERC404.InvalidRecipient.selector);
-        vm.prank(initialOwner_);
-        simpleContract_.transferFrom(initialMintRecipient_, address(0), 1);
-    }
-
-    function test_revert_transferToAndFromZero() public {
-        // Doesn't allow anyone to transfer from 0x0 to 0x0
-        vm.expectRevert(IERC404.InvalidSender.selector);
-        vm.prank(initialMintRecipient_);
-        simpleContract_.transferFrom(address(0), address(0), 1);
-
-        vm.expectRevert(IERC404.InvalidSender.selector);
-        vm.prank(initialOwner_);
-        simpleContract_.transferFrom(address(0), address(0), 1);
-    }
 }
 
-contract Erc404MinimalTest is Test {
+contract Erc404MintingStorageAndRetrievalTest is Test {
     MinimalERC404 public minimalContract_;
 
     string name_ = "Example";
@@ -305,92 +272,6 @@ contract Erc404MinimalTest is Test {
         assertEq(minimalContract_.balanceOf(address(minimalContract_)), 0);
         assertEq(minimalContract_.erc721TokensBankedInQueue(), 0);
     }
-
-    // Context: Operator owns the token to be moved
-    function test_revert_transferNotOwnedByAlice() public {
-        // mint all fixture
-        test_mintFullSupply_20_721(initialOwner_);
-
-        // Reverts when attempting to transfer a token that 'from' does not own
-        address alice = address(0xa);
-        address bob = address(0xb);
-
-        uint256 tokenId = 1;
-        address wrongFrom = alice;
-        address to = bob;
-
-        // Confirm that the target token exists, and that it has a non-0x0 owner.
-        assertNotEq(minimalContract_.ownerOf(tokenId), address(0));
-
-        // Confirm that the operator owns the token.
-        assertEq(minimalContract_.ownerOf(tokenId), initialOwner_);
-
-        // Confirm that the owner of the token is not the wrongFrom address.
-        assertNotEq(minimalContract_.ownerOf(tokenId), wrongFrom);
-
-        // Confirm that to address does not own the token either.
-        assertNotEq(minimalContract_.ownerOf(tokenId), to);
-
-        // Attempt to send 1 ERC-721.
-        vm.expectRevert(IERC404.Unauthorized.selector);
-        vm.prank(initialOwner_);
-        minimalContract_.transferFrom(wrongFrom, to, tokenId);
-    }
-
-    function test_transferOwnedByOperator() public {
-        // mint all fixture
-        test_mintFullSupply_20_721(initialOwner_);
-
-        uint256 tokenId = 1;
-        address to = address(0xa);
-
-        // Confirm that the target token exists, and that it has a non-0x0 owner.
-        assertNotEq(minimalContract_.ownerOf(tokenId), address(0));
-
-        // Confirm that the operator owns the token.
-        assertEq(minimalContract_.ownerOf(tokenId), initialOwner_);
-
-        // Confirm that to address does not own the token either.
-        assertNotEq(minimalContract_.ownerOf(tokenId), to);
-
-        // Attempt to send 1 ERC-721.
-        vm.prank(initialOwner_);
-        minimalContract_.transferFrom(initialOwner_, to, tokenId);
-    }
-
-    // Context: Operator does not own the token to be moved
-    function test_revert_transferNotOwnedByOperator() public {
-        // mint all fixture
-        test_mintFullSupply_20_721(initialOwner_);
-
-        address operator = address(0xa);
-        address wrongFrom = address(0xb);
-        address to = address(0xc);
-        uint256 tokenId = 1;
-
-        // Confirm that the target token exists, and that it has a non-0x0 owner.
-        assertNotEq(minimalContract_.ownerOf(tokenId), address(0));
-
-        // Confirm that the initial minter owns the token.
-        assertEq(minimalContract_.ownerOf(tokenId), initialOwner_);
-
-        // Confirm that the owner of the token is not the wrongFrom address.
-        assertNotEq(minimalContract_.ownerOf(tokenId), operator);
-
-        // Confirm that the owner of the token is not the wrongFrom address.
-        assertNotEq(minimalContract_.ownerOf(tokenId), wrongFrom);
-
-        // Confirm that to address does not own the token either.
-        assertNotEq(minimalContract_.ownerOf(tokenId), to);
-
-        // Attempt to send 1 ERC-721 as operator
-        vm.expectRevert(IERC404.Unauthorized.selector);
-        vm.prank(operator);
-        minimalContract_.transferFrom(wrongFrom, to, tokenId);
-    }
-
-    // TODO: Reverts when operator has not been approved to move 'from''s token
-    // TODO: Allows an approved operator to transfer a token owned by 'from'
 }
 
 contract ERC404TransferLogicTest is Test {
@@ -557,6 +438,149 @@ contract ERC404TransferLogicTest is Test {
     }
 }
 
+contract ERC404TransferFromTest is Test {
+    ExampleERC404 public simpleContract_;
+    MinimalERC404 public minimalContract_;
+
+    string name_ = "Example";
+    string symbol_ = "EXM";
+    uint8 decimals_ = 18;
+    uint256 maxTotalSupplyNft_ = 100;
+    uint256 units_ = 10 ** decimals_;
+    uint256 maxTotalSupplyCoin_ = maxTotalSupplyNft_ * units_;
+
+    address initialOwner_ = address(0x1);
+    address initialMintRecipient_ = initialOwner_;
+
+    function setUp() public {
+        simpleContract_ =
+            new ExampleERC404(name_, symbol_, decimals_, maxTotalSupplyNft_, initialOwner_, initialMintRecipient_);
+        minimalContract_ = new MinimalERC404(name_, symbol_, decimals_, initialOwner_);
+    }
+
+    function test_revert_transferFrom_fromZero() public {
+        // Doesn't allow anyone to transfer from 0x0
+        vm.expectRevert(IERC404.InvalidSender.selector);
+        vm.prank(initialOwner_);
+        simpleContract_.transferFrom(address(0), initialMintRecipient_, 1);
+    }
+
+    function test_revert_transferFrom_toZero() public {
+        // Doesn't allow anyone to transferFrom to 0x0
+        vm.expectRevert(IERC404.InvalidRecipient.selector);
+        vm.prank(initialOwner_);
+        simpleContract_.transferFrom(initialMintRecipient_, address(0), 1);
+    }
+
+    function test_revert_transferFrom_ToAndFromZero() public {
+        // Doesn't allow anyone to transfer from 0x0 to 0x0
+        vm.expectRevert(IERC404.InvalidSender.selector);
+        vm.prank(initialOwner_);
+        simpleContract_.transferFrom(address(0), address(0), 1);
+    }
+
+    function test_mintFullSupply_20_721(address recipient) public {
+        vm.assume(recipient != address(0));
+
+        // Owner mints the full supply of ERC20 tokens (with the corresponding ERC721 tokens minted as well)
+        vm.prank(initialOwner_);
+        minimalContract_.mintERC20(recipient, maxTotalSupplyCoin_, true);
+
+        // Expect the total supply to be equal to the max total supply
+        assertEq(minimalContract_.totalSupply(), maxTotalSupplyCoin_);
+        assertEq(minimalContract_.erc20TotalSupply(), maxTotalSupplyCoin_);
+
+        // Expect the minted count to be equal to the max total supply
+        assertEq(minimalContract_.erc721TotalSupply(), maxTotalSupplyNft_);
+    }
+
+    // Context: Operator owns the token to be moved
+    function test_revert_transferNotOwnedByAlice() public {
+        // mint all fixture
+        test_mintFullSupply_20_721(initialOwner_);
+
+        // Reverts when attempting to transfer a token that 'from' does not own
+        address alice = address(0xa);
+        address bob = address(0xb);
+
+        uint256 tokenId = 1;
+        address wrongFrom = alice;
+        address to = bob;
+
+        // Confirm that the target token exists, and that it has a non-0x0 owner.
+        assertNotEq(minimalContract_.ownerOf(tokenId), address(0));
+
+        // Confirm that the operator owns the token.
+        assertEq(minimalContract_.ownerOf(tokenId), initialOwner_);
+
+        // Confirm that the owner of the token is not the wrongFrom address.
+        assertNotEq(minimalContract_.ownerOf(tokenId), wrongFrom);
+
+        // Confirm that to address does not own the token either.
+        assertNotEq(minimalContract_.ownerOf(tokenId), to);
+
+        // Attempt to send 1 ERC-721.
+        vm.expectRevert(IERC404.Unauthorized.selector);
+        vm.prank(initialOwner_);
+        minimalContract_.transferFrom(wrongFrom, to, tokenId);
+    }
+
+    function test_transferOwnedByOperator() public {
+        // mint all fixture
+        test_mintFullSupply_20_721(initialOwner_);
+
+        uint256 tokenId = 1;
+        address to = address(0xa);
+
+        // Confirm that the target token exists, and that it has a non-0x0 owner.
+        assertNotEq(minimalContract_.ownerOf(tokenId), address(0));
+
+        // Confirm that the operator owns the token.
+        assertEq(minimalContract_.ownerOf(tokenId), initialOwner_);
+
+        // Confirm that to address does not own the token either.
+        assertNotEq(minimalContract_.ownerOf(tokenId), to);
+
+        // Attempt to send 1 ERC-721.
+        vm.prank(initialOwner_);
+        minimalContract_.transferFrom(initialOwner_, to, tokenId);
+    }
+
+    // Context: Operator does not own the token to be moved
+    function test_revert_transferNotOwnedByOperator() public {
+        // mint all fixture
+        test_mintFullSupply_20_721(initialOwner_);
+
+        address operator = address(0xa);
+        address wrongFrom = address(0xb);
+        address to = address(0xc);
+        uint256 tokenId = 1;
+
+        // Confirm that the target token exists, and that it has a non-0x0 owner.
+        assertNotEq(minimalContract_.ownerOf(tokenId), address(0));
+
+        // Confirm that the initial minter owns the token.
+        assertEq(minimalContract_.ownerOf(tokenId), initialOwner_);
+
+        // Confirm that the owner of the token is not the wrongFrom address.
+        assertNotEq(minimalContract_.ownerOf(tokenId), operator);
+
+        // Confirm that the owner of the token is not the wrongFrom address.
+        assertNotEq(minimalContract_.ownerOf(tokenId), wrongFrom);
+
+        // Confirm that to address does not own the token either.
+        assertNotEq(minimalContract_.ownerOf(tokenId), to);
+
+        // Attempt to send 1 ERC-721 as operator
+        vm.expectRevert(IERC404.Unauthorized.selector);
+        vm.prank(operator);
+        minimalContract_.transferFrom(wrongFrom, to, tokenId);
+    }
+
+    // TODO: Reverts when operator has not been approved to move 'from''s token
+    // TODO: Allows an approved operator to transfer a token owned by 'from'
+}
+
 contract ERC404TransferTest is Test {
     ExampleERC404 public simpleContract_;
 
@@ -587,6 +611,8 @@ contract ERC404TransferTest is Test {
         vm.prank(initialOwner_);
         simpleContract_.transfer(address(0), units_);
     }
+
+    // TODO(transfer) - more tests needed here, including testing that approvals work.
 }
 
 contract Erc404SetWhitelistTest is Test {
