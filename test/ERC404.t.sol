@@ -362,6 +362,37 @@ contract Erc404MinimalTest is Test {
         vm.prank(initialOwner_);
         minimalContract_.transferFrom(initialOwner_, to, tokenId);
     }
+
+    // Context: Operator does not own the token to be moved
+    function test_revert_transferNotOwnedByOperator() public {
+        // mint all fixture
+        test_mintFullSupply_20_721(initialOwner_);
+
+        address operator = address(0xa);
+        address wrongFrom = address(0xb);
+        address to = address(0xc);
+        uint256 tokenId = 1;
+
+        // Confirm that the target token exists, and that it has a non-0x0 owner.
+        assertNotEq(minimalContract_.ownerOf(tokenId), address(0));
+
+        // Confirm that the initial minter owns the token.
+        assertEq(minimalContract_.ownerOf(tokenId), initialOwner_);
+
+        // Confirm that the owner of the token is not the wrongFrom address.
+        assertNotEq(minimalContract_.ownerOf(tokenId), operator);
+
+        // Confirm that the owner of the token is not the wrongFrom address.
+        assertNotEq(minimalContract_.ownerOf(tokenId), wrongFrom);
+
+        // Confirm that to address does not own the token either.
+        assertNotEq(minimalContract_.ownerOf(tokenId), to);
+
+        // Attempt to send 1 ERC-721 as operator
+        vm.expectRevert(IERC404.Unauthorized.selector);
+        vm.prank(operator);
+        minimalContract_.transferFrom(wrongFrom, to, tokenId);
+    }
 }
 
 contract ERC404TransferLogicTest is Test {
