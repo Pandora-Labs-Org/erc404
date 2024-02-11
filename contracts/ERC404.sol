@@ -1,6 +1,8 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import "hardhat/console.sol";
+
 import {IERC404} from "./interfaces/IERC404.sol";
 import {ERC721Receiver} from "./lib/ERC721Receiver.sol";
 import {DoubleEndedQueue} from "./lib/DoubleEndedQueue.sol";
@@ -203,7 +205,7 @@ abstract contract ERC404 is IERC404 {
       if (from_ != _getOwnerOf(id)) {
         revert Unauthorized();
       }
-
+      
       // Check that the operator is either the sender or approved for the transfer.
       if (
         msg.sender != from_ &&
@@ -410,9 +412,10 @@ abstract contract ERC404 is IERC404 {
       delete getApproved[id_];
 
       uint256 updatedId = _owned[from_][_owned[from_].length - 1];
-
+      console.log("updatedId", updatedId);
       if (updatedId != id_) {
         uint256 updatedIndex = _getOwnedIndex(id_);
+        console.log("updatedIndex", updatedIndex);
         // update _owned for sender
         _owned[from_][updatedIndex] = updatedId;
         // update index for the moved id
@@ -640,7 +643,7 @@ abstract contract ERC404 is IERC404 {
     uint256 data = _ownedData[id_];
 
     assembly {
-      ownedIndex_ := shl(160, data)
+      ownedIndex_ := shr(160, data)
     }
   }
 
