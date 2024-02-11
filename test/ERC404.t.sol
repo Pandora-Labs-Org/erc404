@@ -77,6 +77,36 @@ contract Erc404Test is Test {
             assertEq(simpleContract_.ownerOf(i), randomAddress);
         }
     }
+
+    function test_revert_transferFromZero() public {
+        vm.expectRevert(IERC404.InvalidSender.selector);
+        vm.prank(initialMintRecipient_);
+        simpleContract_.transferFrom(address(0), initialMintRecipient_, 1);
+
+        vm.expectRevert(IERC404.InvalidSender.selector);
+        vm.prank(initialOwner_);
+        simpleContract_.transferFrom(address(0), initialMintRecipient_, 1);
+    }
+
+    function test_revert_transferToZero() public {
+        vm.expectRevert(IERC404.InvalidRecipient.selector);
+        vm.prank(initialMintRecipient_);
+        simpleContract_.transferFrom(initialMintRecipient_, address(0), 1);
+
+        vm.expectRevert(IERC404.InvalidRecipient.selector);
+        vm.prank(initialOwner_);
+        simpleContract_.transferFrom(initialMintRecipient_, address(0), 1);
+    }
+
+    function test_revert_transferToAndFromZero() public {
+        vm.expectRevert(IERC404.InvalidSender.selector);
+        vm.prank(initialMintRecipient_);
+        simpleContract_.transferFrom(address(0), address(0), 1);
+
+        vm.expectRevert(IERC404.InvalidSender.selector);
+        vm.prank(initialOwner_);
+        simpleContract_.transferFrom(address(0), address(0), 1);
+    }
 }
 
 // deployMinimalERC404
