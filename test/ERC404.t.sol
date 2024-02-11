@@ -138,7 +138,7 @@ contract Erc404MinimalTest is Test {
 
     function test_erc721Storage_mintFrom0(uint8 nftQty, address recipient) public {
         vm.assume(nftQty < maxTotalSupplyNft_);
-        vm.assume(recipient != address(0) && recipient != initialOwner_);
+        vm.assume(recipient != address(0) && recipient != initialOwner_ && recipient != address(minimalContract_));
 
         // Total supply should be 0
         assertEq(minimalContract_.erc721TotalSupply(), 0);
@@ -181,8 +181,8 @@ contract Erc404MinimalTest is Test {
 
     function test_erc721Storage_storeInBankOnBurn(uint8 nftQty, address recipient1, address recipient2) public {
         vm.assume(nftQty > 0 && nftQty < maxTotalSupplyNft_);
-        vm.assume(recipient1 != address(0) && recipient1 != initialOwner_);
-        vm.assume(recipient2 != address(0) && recipient2 != initialOwner_);
+        vm.assume(recipient1 != address(0) && recipient1 != initialOwner_ && recipient1 != address(minimalContract_));
+        vm.assume(recipient2 != address(0) && recipient2 != initialOwner_ && recipient2 != address(minimalContract_));
         vm.assume(!minimalContract_.whitelist(recipient1) && !minimalContract_.whitelist(recipient2));
 
         // Total supply should be 0
@@ -224,8 +224,51 @@ contract Erc404MinimalTest is Test {
 
         // contract balance = 0
         // contract bank = 1 nft
+        assertEq(minimalContract_.balanceOf(address(minimalContract_)), 0);
+        assertEq(minimalContract_.erc721TokensBankedInQueue(), 1);
+    }
+
+    function test_erc721Storage_retrieveFromBank(uint8 nftQty, address recipient1, address recipient2) public {
+        vm.assume(nftQty > 0 && nftQty < maxTotalSupplyNft_);
+        vm.assume(recipient1 != address(0) && recipient1 != initialOwner_ && recipient1 != address(minimalContract_));
+        vm.assume(recipient2 != address(0) && recipient2 != initialOwner_ && recipient2 != address(minimalContract_));
+        vm.assume(!minimalContract_.whitelist(recipient1) && !minimalContract_.whitelist(recipient2));
+
+        uint256 value = nftQty * units_;
+
+        // mint as owner
+        vm.prank(initialOwner_);
+        minimalContract_.mintERC20(recipient1, value, true);
+
+        uint256 fractionalValueToTransferErc20 = units_ / 10;
+        vm.prank(recipient1);
+        minimalContract_.transfer(recipient2, fractionalValueToTransferErc20);
 
         assertEq(minimalContract_.balanceOf(address(minimalContract_)), 0);
         assertEq(minimalContract_.erc721TokensBankedInQueue(), 1);
+
+        // reconstitute
+        // expected events
+        vm.expectEmit(false, false, false, false);
+        emit ERC20Transfer(recipient2, recipient1, fractionalValueToTransferErc20);
+
+        vm.expectEmit(false, false, false, false);
+        emit ERC721Transfer(address(0), recipient1, nftQty);
+
+        // tx
+        vm.prank(recipient2);
+        minimalContract_.transfer(recipient1, fractionalValueToTransferErc20);
+
+        // Original sender's ERC20 balance should be nftQty * units
+        // The owner of NFT `nftQty` should be the original sender's address
+        assertEq(minimalContract_.erc20BalanceOf(recipient1), nftQty * units_);
+        assertEq(minimalContract_.ownerOf(nftQty), recipient1);
+
+        // The sender's NFT balance should be 10
+        // The contract's NFT balance should be 0
+        // The contract's bank should contain 0 NFTs
+        assertEq(minimalContract_.erc721BalanceOf(recipient1), nftQty);
+        assertEq(minimalContract_.balanceOf(address(minimalContract_)), 0);
+        assertEq(minimalContract_.erc721TokensBankedInQueue(), 0);
     }
 }
