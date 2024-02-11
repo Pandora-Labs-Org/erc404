@@ -914,9 +914,91 @@ describe("ERC404", function () {
 
   describe.skip("#transferFrom", function () {})
 
-  describe.skip("#erc721BalanceOf", function () {})
+  describe("#erc721BalanceOf", function () {
+    context("The address has 0.9 ERC-20 balance", function () {
+      it("Returns the correct balance (0 ERC-721)", async function () {
+        const f = await loadFixture(deployExampleERC404)
 
-  describe.skip("#erc20BalanceOf", function () {})
+        const targetAddress = f.randomAddresses[0]
+        const transferAmount = (f.deployConfig.units / 10n) * 9n // 0.9 tokens
+
+        // Transfer 1 full NFT worth of tokens to that address.
+        await f.contract
+          .connect(f.signers[0])
+          .transfer(targetAddress, transferAmount)
+
+        expect(await f.contract.erc20BalanceOf(targetAddress)).to.equal(
+          transferAmount,
+        )
+        expect(await f.contract.erc721BalanceOf(targetAddress)).to.equal(0n)
+      })
+    })
+
+    context("The address has exactly 1.0 ERC-20 balance", function () {
+      it("Returns the correct balance (1 ERC-721)", async function () {
+        const f = await loadFixture(deployExampleERC404)
+
+        const targetAddress = f.randomAddresses[0]
+        const transferAmount = f.deployConfig.units // 1.0 tokens
+
+        // Transfer 1 full NFT worth of tokens to that address.
+        await f.contract
+          .connect(f.signers[0])
+          .transfer(targetAddress, transferAmount)
+
+        expect(await f.contract.erc20BalanceOf(targetAddress)).to.equal(
+          transferAmount,
+        )
+        expect(await f.contract.erc721BalanceOf(targetAddress)).to.equal(1n)
+      })
+    })
+
+    context("The address has 1.1 ERC-20 balance", function () {
+      it("Returns the correct balance (1 ERC-721)", async function () {
+        const f = await loadFixture(deployExampleERC404)
+
+        const targetAddress = f.randomAddresses[0]
+        const transferAmount = (f.deployConfig.units / 10n) * 9n // 0.9 tokens
+
+        // Transfer 1 full NFT worth of tokens to that address.
+        await f.contract
+          .connect(f.signers[0])
+          .transfer(targetAddress, transferAmount)
+
+        expect(await f.contract.erc20BalanceOf(targetAddress)).to.equal(
+          transferAmount,
+        )
+        expect(await f.contract.erc721BalanceOf(targetAddress)).to.equal(0n)
+      })
+    })
+  })
+
+  describe("#erc20BalanceOf", function () {
+    it("Returns the correct balance", async function () {
+      const f = await loadFixture(deployExampleERC404)
+
+      const targetAddress = f.randomAddresses[0]
+      const transferAmount = (f.deployConfig.units / 10n) * 9n // 0.9 tokens
+
+      expect(await f.contract.erc20BalanceOf(targetAddress)).to.equal(0n)
+
+      await f.contract
+        .connect(f.signers[0])
+        .transfer(targetAddress, transferAmount)
+
+      expect(await f.contract.erc20BalanceOf(targetAddress)).to.equal(
+        transferAmount,
+      )
+
+      await f.contract
+        .connect(f.signers[0])
+        .transfer(targetAddress, transferAmount)
+
+      expect(await f.contract.erc20BalanceOf(targetAddress)).to.equal(
+        transferAmount * 2n,
+      )
+    })
+  })
 
   describe("#setApprovalForAll", function () {
     context(
