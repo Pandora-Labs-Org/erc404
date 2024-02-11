@@ -272,3 +272,63 @@ contract Erc404MinimalTest is Test {
         assertEq(minimalContract_.erc721TokensBankedInQueue(), 0);
     }
 }
+
+contract ERC404TransferLogicTest is Test {
+    ExampleERC404 public simpleContract_;
+
+    string name_ = "Example";
+    string symbol_ = "EXM";
+    uint8 decimals_ = 18;
+    uint256 maxTotalSupplyNft_ = 100;
+    uint256 units_ = 10 ** decimals_;
+
+    address initialOwner_ = address(0x1);
+    address initialMintRecipient_ = address(0x2);
+
+    // alice is initial sender for all this test;
+    address alice = address(0xa);
+    address bob = address(0xb);
+
+    function setUp() public {
+        simpleContract_ =
+            new ExampleERC404(name_, symbol_, decimals_, maxTotalSupplyNft_, initialOwner_, initialMintRecipient_);
+
+        // Add the owner to the whitelist
+        vm.prank(initialOwner_);
+        simpleContract_.setWhitelist(initialOwner_, true);
+
+        vm.prank(initialMintRecipient_);
+        simpleContract_.transfer(alice, maxTotalSupplyNft_ * units_);
+    }
+
+    function test_erc20TransferTriggering721Transfer_fractional_receiverGain() public {
+        // Fractional transfers (moving less than 1 full token) that trigger ERC721 transfers
+
+        // Bob starts with 0.9 tokens
+        uint256 bobInitialBalance = units_ * 9 / 10;
+        vm.prank(alice);
+        simpleContract_.transfer(bob, bobInitialBalance);
+
+        uint256 aliceInitialBalance = simpleContract_.balanceOf(alice);
+        uint256 aliceInitialNftBalance = (simpleContract_.erc721BalanceOf(alice));
+
+        // Ensure that the receiver has 0.9 tokens and 0 NFTs.
+        assertEq(simpleContract_.balanceOf(bob), bobInitialBalance);
+        assertEq(simpleContract_.erc20BalanceOf(bob), bobInitialBalance);
+        assertEq(simpleContract_.erc721BalanceOf(bob), 0);
+
+        uint256 fractionalValueToTransferErc20 = units_ / 10;
+        vm.prank(alice);
+
+        simpleContract_.transfer(bob, fractionalValueToTransferErc20);
+
+        // Verify ERC20 balances after transfer
+        assertEq(simpleContract_.balanceOf(alice), aliceInitialBalance - fractionalValueToTransferErc20);
+        assertEq(simpleContract_.balanceOf(bob), bobInitialBalance + fractionalValueToTransferErc20);
+
+        // Verify ERC721 balances after transfer
+        // Assuming the receiver should have gained 1 NFT due to the transfer completing a whole token
+        assertEq(simpleContract_.erc721BalanceOf(alice), aliceInitialNftBalance);
+        assertEq(simpleContract_.erc721BalanceOf(bob), 1);
+    }
+}
