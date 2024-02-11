@@ -644,4 +644,30 @@ contract Erc404Erc721BalanceOf is Test {
         assertEq(simpleContract_.erc20BalanceOf(alice), transferAmount);
         assertEq(simpleContract_.erc721BalanceOf(alice), 0);
     }
+
+    function test_exactly1Balance() public {
+        // The address has exactly 1.0 ERC-20 balance
+        // Returns the correct balance (1 ERC-721)
+        address alice = address(0xa);
+        uint256 transferAmount = units_;
+
+        vm.prank(initialOwner_);
+        simpleContract_.transfer(alice, transferAmount);
+
+        assertEq(simpleContract_.erc20BalanceOf(alice), transferAmount);
+        assertEq(simpleContract_.erc721BalanceOf(alice), 1);
+    }
+
+    function test_1_1_balance() public {
+        // The address has 1.1 ERC-20 balance
+        // Returns the correct balance (1 ERC-721)
+        address alice = address(0xa);
+        uint256 transferAmount = units_ * 11 / 10;
+
+        vm.prank(initialOwner_);
+        simpleContract_.transfer(alice, transferAmount);
+
+        assertEq(simpleContract_.erc20BalanceOf(alice), transferAmount);
+        assertEq(simpleContract_.erc721BalanceOf(alice), 1);
+    }
 }
