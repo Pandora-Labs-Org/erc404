@@ -116,6 +116,26 @@ contract Erc404MintingStorageAndRetrievalTest is Test {
         assertEq(minimalContract_.erc721TotalSupply(), maxTotalSupplyNft_);
     }
 
+    function test_mintFullSupply_20_721_whitelistedRecipient(address recipient) public {
+        vm.assume(recipient != address(0));
+
+        assertFalse(minimalContract_.erc721TransferExempt(recipient));
+
+        vm.prank(initialOwner_);
+        minimalContract_.setERC721TransferExempt(recipient, true);
+
+        // Owner mints the full supply of ERC20 tokens (with the corresponding ERC721 tokens minted as well)
+        vm.prank(initialOwner_);
+        minimalContract_.mintERC20(recipient, maxTotalSupplyCoin_, true);
+
+        // Expect the total supply to be equal to the max total supply
+        assertEq(minimalContract_.totalSupply(), maxTotalSupplyCoin_);
+        assertEq(minimalContract_.erc20TotalSupply(), maxTotalSupplyCoin_);
+
+        // Expect the minted count to be equal to 0
+        assertEq(minimalContract_.erc721TotalSupply(), 0);
+    }
+
     function test_mintFullSupply_20(address recipient) public {
         vm.assume(recipient != address(0));
 
