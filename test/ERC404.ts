@@ -232,7 +232,7 @@ describe("ERC404", function () {
     // Add the owner to the whitelist
     await f.contract
       .connect(f.signers[0])
-      .setWhitelist(f.signers[0].address, true)
+      .setERC721TransferExempt(f.signers[0].address, true)
 
     // Transfer all tokens from the owner to 'from', who is the initial sender for the tests.
     await f.contract
@@ -314,7 +314,9 @@ describe("ERC404", function () {
       const f = await loadFixture(deployExampleERC404)
 
       expect(
-        await f.contract.whitelist(f.deployConfig.initialMintRecipient.address),
+        await f.contract.erc721TransferExempt(
+          f.deployConfig.initialMintRecipient.address,
+        ),
       ).to.equal(true)
     })
   })
@@ -1108,23 +1110,29 @@ describe("ERC404", function () {
     // TODO more tests needed here, including testing that approvals work.
   })
 
-  describe("#_setWhitelist", function () {
+  describe("#_setERC721TransferExempt", function () {
     it("Allows the owner to add and remove addresses from the whitelist", async function () {
       const f = await loadFixture(deployExampleERC404)
 
-      expect(await f.contract.whitelist(f.randomAddresses[1])).to.equal(false)
+      expect(
+        await f.contract.erc721TransferExempt(f.randomAddresses[1]),
+      ).to.equal(false)
 
       // Add a random address to the whitelist
       await f.contract
         .connect(f.signers[0])
-        .setWhitelist(f.randomAddresses[1], true)
-      expect(await f.contract.whitelist(f.randomAddresses[1])).to.equal(true)
+        .setERC721TransferExempt(f.randomAddresses[1], true)
+      expect(
+        await f.contract.erc721TransferExempt(f.randomAddresses[1]),
+      ).to.equal(true)
 
       // Remove the random address from the whitelist
       await f.contract
         .connect(f.signers[0])
-        .setWhitelist(f.randomAddresses[1], false)
-      expect(await f.contract.whitelist(f.randomAddresses[1])).to.equal(false)
+        .setERC721TransferExempt(f.randomAddresses[1], false)
+      expect(
+        await f.contract.erc721TransferExempt(f.randomAddresses[1]),
+      ).to.equal(false)
     })
 
     it("An address cannot be removed from the whitelist while it has an ERC-20 balance >= 1 full token.", async function () {
@@ -1140,12 +1148,19 @@ describe("ERC404", function () {
       expect(await f.contract.erc721BalanceOf(targetAddress)).to.equal(1n)
 
       // Add that address to the whitelist.
-      await f.contract.connect(f.signers[0]).setWhitelist(targetAddress, true)
+      await f.contract
+        .connect(f.signers[0])
+        .setERC721TransferExempt(targetAddress, true)
 
       // Attempt to remove the random address from the whitelist.
       await expect(
-        f.contract.connect(f.signers[0]).setWhitelist(targetAddress, false),
-      ).to.be.revertedWithCustomError(f.contract, "CannotRemoveFromWhitelist")
+        f.contract
+          .connect(f.signers[0])
+          .setERC721TransferExempt(targetAddress, false),
+      ).to.be.revertedWithCustomError(
+        f.contract,
+        "CannotRemoveFromERC721TransferExempt",
+      )
     })
   })
 
