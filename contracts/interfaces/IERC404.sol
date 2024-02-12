@@ -30,7 +30,8 @@ interface IERC404 is IERC165 {
   error InvalidSpender();
   error InvalidOperator();
   error UnsafeRecipient();
-  error NotERC721TransferExempt();
+  error RecipientIsERC721TransferExempt();
+  error SenderIsERC721TransferExempt();
   error Unauthorized();
   error InsufficientAllowance();
   error DecimalsTooLow();
