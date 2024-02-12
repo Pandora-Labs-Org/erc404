@@ -1123,9 +1123,9 @@ contract Erc404E2ETest is Test {
     string name_ = "Example";
     string symbol_ = "EXM";
     uint8 decimals_ = 18;
-    // uint256 units_ = 10 ** decimals_;
-    // uint256 maxTotalSupplyNft_ = 100;
-    // uint256 maxTotalSupplyCoin_ = maxTotalSupplyNft_ * units_;
+    uint256 units_ = 10 ** decimals_;
+    uint256 maxTotalSupplyNft_ = 100;
+    uint256 maxTotalSupplyCoin_ = maxTotalSupplyNft_ * units_;
 
     address initialOwner_ = address(0x1);
 
@@ -1136,7 +1136,146 @@ contract Erc404E2ETest is Test {
         minimalContract_ = new MinimalERC404(name_, symbol_, decimals_, initialOwner_);
     }
 
-    function test_mintFull_transfer20_transfer721_bankRetrieve_setRemoveWhitelist() public {}
+    function test_mintFull_transfer20_transfer721_bankRetrieve_setRemoveWhitelist() public {
+        address alice = address(0xa);
+        vm.prank(initialOwner_);
+        minimalContract_.mintERC20(alice, maxTotalSupplyCoin_, true);
+
+        assertEq(minimalContract_.erc721TotalSupply(), maxTotalSupplyNft_);
+
+        assertEq(minimalContract_.totalSupply(), maxTotalSupplyCoin_);
+
+        vm.prank(initialOwner_);
+        minimalContract_.mintERC20(alice, 1, true);
+
+        assertEq(minimalContract_.erc20BalanceOf(alice), maxTotalSupplyCoin_ + 1);
+
+        assertEq(minimalContract_.erc721BalanceOf(alice), maxTotalSupplyNft_);
+        for (uint256 i = 1; i <= 100; i++) {
+            assertEq(minimalContract_.ownerOf(i), alice);
+        }
+
+        // transfer 5 as erc20
+        address bob = address(0xb);
+        vm.prank(alice);
+        minimalContract_.transfer(bob, 5 * units_);
+
+        assertEq(minimalContract_.erc20BalanceOf(alice), maxTotalSupplyCoin_ - (5 * units_) + 1);
+
+        assertEq(minimalContract_.erc721BalanceOf(alice), maxTotalSupplyNft_ - 5);
+        for (uint256 i = 1; i <= 95; i++) {
+            assertEq(minimalContract_.ownerOf(i), alice);
+        }
+        // Expect the recipient to have 5 * units ERC-20 tokens and 5 ERC-721 tokens
+        assertEq(minimalContract_.erc20BalanceOf(bob), 5 * units_);
+        assertEq(minimalContract_.erc721BalanceOf(bob), 5);
+        // Expect the recipient to be the owner of token ids 96-100.
+        for (uint256 i = 96; i <= 100; i++) {
+            assertEq(minimalContract_.ownerOf(i), bob);
+        }
+
+        // Transfer a fraction of a token to another address to break apart a full NFT.
+        uint256 fractionalValue1 = units_ * 1 / 10;
+        address charlie = address(0xc);
+
+        vm.prank(bob);
+        minimalContract_.transfer(charlie, fractionalValue1);
+
+        assertEq(minimalContract_.erc20BalanceOf(charlie), fractionalValue1);
+        assertEq(minimalContract_.erc721BalanceOf(charlie), 0);
+
+        // Expect the sender to have 4.9 * units ERC-20 tokens and 4 ERC-721 tokens
+        assertEq(minimalContract_.erc20BalanceOf(bob), 5 * units_ - fractionalValue1);
+        assertEq(minimalContract_.erc721BalanceOf(bob), 4);
+
+        // Expect that the sender holds token ids 97-99 (96 popped off)
+        for (uint256 i = 97; i <= 99; i++) {
+            assertEq(minimalContract_.ownerOf(i), bob);
+        }
+
+        // Expect the contract to have 0 ERC-721 token
+        assertEq(minimalContract_.erc721BalanceOf(address(minimalContract_)), 0);
+        // Expect the contract to hold token id 96
+        vm.expectRevert(IERC404.NotFound.selector);
+        minimalContract_.ownerOf(96);
+
+        // The sender has 4.9 tokens now. Transfer 0.9 tokens to a different address, leaving 4 tokens. This should not break apart any new tokens. The contract hsould still hold 1, the sender should hold 4 and 4 NFTs, and the new receiver should hold 0.9 and no NFTs
+        uint256 fractionalValue2 = units_ * 9 / 10;
+        address david = address(0xd);
+
+        vm.prank(bob);
+        minimalContract_.transfer(david, fractionalValue2);
+
+        // Expect the sender to have 4 * units ERC-20 tokens and 4 ERC-721 tokens
+        assertEq(minimalContract_.erc20BalanceOf(bob), 4 * units_);
+        assertEq(minimalContract_.erc721BalanceOf(bob), 4);
+
+        assertEq(minimalContract_.erc20BalanceOf(david), fractionalValue2);
+        assertEq(minimalContract_.erc721BalanceOf(david), 0);
+
+        // Break apart another full token so the contract holds 2 (to test the FIFO queue)
+        // Transfer 0.1 tokens to the contract from the same sender, so he now has 3.9 tokens and 3 NFTs, and the contract has 2 NFTs.
+        address emily = address(0xe);
+        vm.prank(bob);
+        minimalContract_.transfer(emily, fractionalValue1);
+
+        // Expect the sender to have 3/9 * units ERC-20 tokens and 3 ERC-721 tokens
+        assertEq(minimalContract_.erc20BalanceOf(bob), 4 * units_ - fractionalValue1);
+        assertEq(minimalContract_.erc721BalanceOf(bob), 3);
+
+        assertEq(minimalContract_.erc20BalanceOf(emily), fractionalValue1);
+        assertEq(minimalContract_.erc721BalanceOf(emily), 0);
+
+        // Expect the recipient to be the owner of token ids 96-100.
+        for (uint256 i = 98; i <= 100; i++) {
+            assertEq(minimalContract_.ownerOf(i), bob);
+        }
+        // Expect the contract to have 0 ERC-721 token
+        assertEq(minimalContract_.erc721BalanceOf(address(minimalContract_)), 0);
+        // Expect the contract to hold token id 96, 97
+        vm.expectRevert(IERC404.NotFound.selector);
+        minimalContract_.ownerOf(96);
+        vm.expectRevert(IERC404.NotFound.selector);
+        minimalContract_.ownerOf(97);
+
+        address foobar = address(0xf);
+
+        // Transfer two full tokens to a new address, leaving the sender with 1.9 tokens and 1 NFT, the new recipient with 2 tokens and 2 NFTs, and the contract with 0 tokens and 2 NFTs.
+        vm.prank(bob);
+        minimalContract_.transfer(foobar, 2 * units_);
+
+        // Expect the sender to have
+        assertEq(minimalContract_.erc20BalanceOf(bob), 2 * units_ - fractionalValue1);
+        assertEq(minimalContract_.erc721BalanceOf(bob), 1);
+
+        assertEq(minimalContract_.erc20BalanceOf(foobar), 2 * units_);
+        assertEq(minimalContract_.erc721BalanceOf(foobar), 2);
+
+        assertEq(minimalContract_.ownerOf(100), bob);
+        // Expect the contract to hold token id 96, 97
+        vm.expectRevert(IERC404.NotFound.selector);
+        minimalContract_.ownerOf(96);
+        vm.expectRevert(IERC404.NotFound.selector);
+        minimalContract_.ownerOf(97);
+
+        assertEq(minimalContract_.erc20BalanceOf(emily), fractionalValue1);
+        assertEq(minimalContract_.erc721BalanceOf(emily), 0);
+
+        vm.prank(bob);
+        minimalContract_.transfer(emily, fractionalValue2);
+
+        assertEq(minimalContract_.erc20BalanceOf(bob), 1 * units_);
+        assertEq(minimalContract_.erc721BalanceOf(bob), 1);
+
+        assertEq(minimalContract_.erc20BalanceOf(emily), 1 * units_);
+        assertEq(minimalContract_.erc721BalanceOf(emily), 1);
+
+        assertEq(minimalContract_.ownerOf(96), emily);
+        assertEq(minimalContract_.ownerOf(100), bob);
+        // Expect the zero address to still hold token id 97
+        vm.expectRevert(IERC404.NotFound.selector);
+        minimalContract_.ownerOf(97);
+    }
 }
 
 contract SigUtils {
