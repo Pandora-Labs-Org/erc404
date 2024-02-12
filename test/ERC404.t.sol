@@ -976,7 +976,22 @@ contract Erc404SetApprovalTest is Test {
         assertEq(minimalContract_.getApproved(1), address(0));
     }
 
-    function test_operatorGrantSpecificAfterApprovalForAll() public {}
+    // Having already granted approval for all to a valid address
+    function test_operatorGrantSpecificAfterApprovalForAll() public {
+        // Allows an approved operator to grant specific approval for any ERC-721 token owned by the grantor
+        address intendedOperator = address(0xa);
+        address secondOperator = address(0xb);
+        vm.prank(initialOwner_);
+        minimalContract_.setApprovalForAll(intendedOperator, true);
+
+        // Confirm that the token is owned by the grantor
+        assertEq(minimalContract_.ownerOf(1), initialOwner_);
+        vm.prank(intendedOperator);
+        minimalContract_.approve(secondOperator, 1);
+
+        assertEq(minimalContract_.getApproved(1), secondOperator);
+    }
+
     function test_grant20Approval() public {}
 }
 
