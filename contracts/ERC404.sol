@@ -601,11 +601,15 @@ abstract contract ERC404 is IERC404 {
 
   /// @notice Initialization function to set pairs / etc, saving gas by avoiding mint / burn on unnecessary targets
   function _setWhitelist(address target_, bool state_) internal virtual {
-    // If the target has at least 1 full ERC-20 token, they should not be removed from the whitelist
-    // because if they were and then they attempted to transfer, it would revert as they would not
-    // necessarily have ehough ERC-721s to bank.
-    if (erc20BalanceOf(target_) >= units && !state_) {
+    // Prevents wallets that hold don't hold a matching amount of ERC-20s and ERC-721s from getting removed from the whitelist and their future transfers reverting due to not having the correct number of ERC-721s.
+    if (erc20BalanceOf(target_) / units != erc721BalanceOf(target_) && !state_) {
       revert CannotRemoveFromWhitelist();
+    }
+
+    // Cannot add addresses to the whitelist that hold an ERC-721.
+    // Prevents wallets that hold ERC-721s from getting added to the whitelist and their ERC-721s getting trapped.
+    if (erc721BalanceOf(target_) > 0 && state_) {
+      revert CannotAddToWhitelist();
     }
     whitelist[target_] = state_;
   }
