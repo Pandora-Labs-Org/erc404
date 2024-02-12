@@ -464,8 +464,11 @@ abstract contract ERC404 is IERC404 {
       // Only cares about whole number increments.
       uint256 tokensToRetrieveOrMint = (balanceOf[to_] / units) -
         (erc20BalanceOfReceiverBefore / units);
-      for (uint256 i = 0; i < tokensToRetrieveOrMint; i++) {
+      for (uint256 i = 0; i < tokensToRetrieveOrMint;) {
         _retrieveOrMintERC721(to_);
+        unchecked {
+          i++;
+        }
       }
     } else if (isToERC721TransferExempt) {
       // Case 3) The sender is not ERC-721 transfer exempt, but the recipient is. Contract should attempt
@@ -474,8 +477,11 @@ abstract contract ERC404 is IERC404 {
       // Only cares about whole number increments.
       uint256 tokensToWithdrawAndStore = (erc20BalanceOfSenderBefore / units) -
         (balanceOf[from_] / units);
-      for (uint256 i = 0; i < tokensToWithdrawAndStore; i++) {
+      for (uint256 i = 0; i < tokensToWithdrawAndStore;) {
         _withdrawAndStoreERC721(from_);
+        unchecked {
+          i++;
+        }
       }
     } else {
       // Case 4) Neither the sender nor the recipient are ERC-721 transfer exempt.
@@ -489,11 +495,14 @@ abstract contract ERC404 is IERC404 {
 
       // Whole tokens worth of ERC-20s get transferred as ERC-721s without any burning/minting.
       uint256 nftsToTransfer = value_ / units;
-      for (uint256 i = 0; i < nftsToTransfer; i++) {
+      for (uint256 i = 0; i < nftsToTransfer;) {
         // Pop from sender's ERC-721 stack and transfer them (LIFO)
         uint256 indexOfLastToken = _owned[from_].length - 1;
         uint256 tokenId = _owned[from_][indexOfLastToken];
         _transferERC721(from_, to_, tokenId);
+        unchecked {
+          i++;
+        }
       }
 
       // If the sender's transaction changes their holding from a fractional to a non-fractional
@@ -544,8 +553,11 @@ abstract contract ERC404 is IERC404 {
     // If mintCorrespondingERC721s_ is true, mint the corresponding ERC721s.
     if (mintCorrespondingERC721s_) {
       uint256 nftsToRetrieveOrMint = value_ / units;
-      for (uint256 i = 0; i < nftsToRetrieveOrMint; i++) {
+      for (uint256 i = 0; i < nftsToRetrieveOrMint;) {
         _retrieveOrMintERC721(to_);
+        unchecked {
+          i++;
+        }
       }
     }
   }
