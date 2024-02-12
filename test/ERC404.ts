@@ -2061,14 +2061,6 @@ describe("ERC404", function () {
       },
     )
 
-    //     if (erc20BalanceOf(target_) / units != erc721BalanceOf(target_) && !state_) {
-    //   revert CannotRemoveFromWhitelist();
-    // }
-
-    //    if (erc721BalanceOf(target_) > 0 && state_) {
-    //   revert CannotAddToWhitelist();
-    // }
-
     context(
       "Address's number of whole ERC-20 tokens does not equal their ERC-721 balance",
       function () {
