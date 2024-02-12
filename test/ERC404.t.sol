@@ -1023,7 +1023,95 @@ contract Erc404SetApprovalTest is Test {
     }
 }
 
-contract Erc404PermitTest is Test {}
+contract Erc404PermitTest is Test {
+    MinimalERC404 public minimalContract_;
+    SigUtils internal sigUtils;
+
+    string name_ = "Example";
+    string symbol_ = "EXM";
+    uint8 decimals_ = 18;
+    uint256 units_ = 10 ** decimals_;
+    uint256 maxTotalSupplyNft_ = 100;
+    uint256 maxTotalSupplyCoin_ = maxTotalSupplyNft_ * units_;
+
+    uint256 ownerPrivateKey = 0xA11CE;
+    address initialOwner_ = vm.addr(ownerPrivateKey);
+
+    // event ERC721Transfer(address indexed from, address indexed to, uint256 indexed id);
+    event ERC20Approval(address from, address to, uint256 value);
+
+    function setUp() public {
+        minimalContract_ = new MinimalERC404(name_, symbol_, decimals_, initialOwner_);
+        vm.prank(initialOwner_);
+        minimalContract_.mintERC20(initialOwner_, maxTotalSupplyCoin_, true);
+        sigUtils = new SigUtils(minimalContract_.DOMAIN_SEPARATOR());
+    }
+
+    function test_revert_permit721() public {
+        address spender = vm.addr(0xB0B);
+        assertEq(minimalContract_.ownerOf(1), initialOwner_);
+
+        SigUtils.Permit memory permit =
+            SigUtils.Permit({owner: initialOwner_, spender: spender, value: 1, nonce: 0, deadline: 1 days});
+        bytes32 digest = sigUtils.getTypedDataHash(permit);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPrivateKey, digest);
+
+        vm.expectRevert(IERC404.InvalidApproval.selector);
+        vm.prank(initialOwner_);
+        minimalContract_.permit(initialOwner_, spender, 1, 1 days, v, r, s);
+    }
+
+    function test_revert_permit20AddressZero() public {
+        // Should revert when 0x0 spender
+        address spender = address(0);
+        assertEq(minimalContract_.ownerOf(1), initialOwner_);
+
+        SigUtils.Permit memory permit =
+            SigUtils.Permit({owner: initialOwner_, spender: spender, value: 1, nonce: 0, deadline: 1 days});
+        bytes32 digest = sigUtils.getTypedDataHash(permit);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPrivateKey, digest);
+
+        vm.expectRevert();
+        vm.prank(initialOwner_);
+        minimalContract_.permit(initialOwner_, spender, 1, 1 days, v, r, s);
+    }
+
+    function test_revert_deadlineExpired() public {
+        address spender = vm.addr(0xB0B);
+        assertEq(minimalContract_.ownerOf(1), initialOwner_);
+        assertGt(minimalContract_.balanceOf(initialOwner_), units_);
+
+        SigUtils.Permit memory permit =
+            SigUtils.Permit({owner: initialOwner_, spender: spender, value: units_, nonce: 0, deadline: 0});
+        bytes32 digest = sigUtils.getTypedDataHash(permit);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPrivateKey, digest);
+
+        vm.expectRevert(IERC404.PermitDeadlineExpired.selector);
+        vm.prank(initialOwner_);
+        minimalContract_.permit(initialOwner_, spender, units_, 0 days, v, r, s);
+    }
+
+    function test_setApprovalFromPermit() public {
+        address spender = vm.addr(0xB0B);
+        assertEq(minimalContract_.ownerOf(1), initialOwner_);
+        assertGt(minimalContract_.balanceOf(initialOwner_), units_);
+
+        SigUtils.Permit memory permit =
+            SigUtils.Permit({owner: initialOwner_, spender: spender, value: units_, nonce: 0, deadline: 1 days});
+        bytes32 digest = sigUtils.getTypedDataHash(permit);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPrivateKey, digest);
+
+        vm.expectEmit();
+        emit ERC20Approval(initialOwner_, spender, units_);
+
+        vm.prank(initialOwner_);
+        minimalContract_.permit(initialOwner_, spender, units_, 1 days, v, r, s);
+    }
+}
 
 contract Erc404E2ETest is Test {
     MinimalERC404 public minimalContract_;
@@ -1045,4 +1133,35 @@ contract Erc404E2ETest is Test {
     }
 
     function test_mintFull_transfer20_transfer721_bankRetrieve_setRemoveWhitelist() public {}
+}
+
+contract SigUtils {
+    bytes32 internal DOMAIN_SEPARATOR;
+
+    constructor(bytes32 _DOMAIN_SEPARATOR) {
+        DOMAIN_SEPARATOR = _DOMAIN_SEPARATOR;
+    }
+
+    // keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+    bytes32 public constant PERMIT_TYPEHASH = 0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9;
+
+    struct Permit {
+        address owner;
+        address spender;
+        uint256 value;
+        uint256 nonce;
+        uint256 deadline;
+    }
+
+    // computes the hash of a permit
+    function getStructHash(Permit memory _permit) internal pure returns (bytes32) {
+        return keccak256(
+            abi.encode(PERMIT_TYPEHASH, _permit.owner, _permit.spender, _permit.value, _permit.nonce, _permit.deadline)
+        );
+    }
+
+    // computes the hash of the fully encoded EIP-712 message for the domain, which can be used to recover the signer
+    function getTypedDataHash(Permit memory _permit) public view returns (bytes32) {
+        return keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, getStructHash(_permit)));
+    }
 }
