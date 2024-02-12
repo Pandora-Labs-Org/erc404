@@ -2127,7 +2127,7 @@ describe("ERC404", function () {
       },
     )
 
-    context.only("Address holds at least one ERC-721 token", function () {
+    context("Address holds at least one ERC-721 token", function () {
       it("Cannot be added to whitelist", async function () {
         const f = await loadFixture(deployExampleERC404)
 
