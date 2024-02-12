@@ -921,7 +921,7 @@ contract Erc404SetApprovalTest is Test {
     address initialOwner_ = address(0x1);
 
     event ERC721Approval(address indexed owner, address indexed spender, uint256 indexed id);
-    event ERC20Approval(address indexed owner, address indexed spender, uint256 amount);
+    event ERC20Approval(address owner, address spender, uint256 value);
 
     function setUp() public {
         minimalContract_ = new MinimalERC404(name_, symbol_, decimals_, initialOwner_);
@@ -992,7 +992,25 @@ contract Erc404SetApprovalTest is Test {
         assertEq(minimalContract_.getApproved(1), secondOperator);
     }
 
-    function test_grant20Approval() public {}
+    function test_grant20Approval() public {
+        // Allows a user to grant an operator an ERC-20 token allowance
+        address intendedOperator = address(0xa);
+        assertEq(minimalContract_.allowance(initialOwner_, intendedOperator), 0);
+
+        uint256 minted = minimalContract_.erc721TotalSupply();
+        uint256 allowanceToSet = minted + 1;
+
+        vm.expectEmit(false, false, false, true);
+        emit ERC20Approval(initialOwner_, intendedOperator, minted + 1);
+
+        vm.prank(initialOwner_);
+        minimalContract_.approve(intendedOperator, minted + 1);
+
+        assertEq(minimalContract_.allowance(initialOwner_, intendedOperator), allowanceToSet);
+
+        // Confirm that a corresponding ERC-721 approval for the allowanceToSet value was not set.
+        assertEq(minimalContract_.getApproved(allowanceToSet), address(0));
+    }
 }
 
 contract Erc404PermitTest is Test {}
