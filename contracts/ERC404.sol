@@ -213,7 +213,17 @@ abstract contract ERC404 is IERC404 {
         revert Unauthorized();
       }
 
+      // Neither the sender nor the recipient can be ERC-721 transfer exempt when transferring specific token ids.
+      if (erc721TransferExempt[from_]) {
+        revert SenderIsERC721TransferExempt();
+      }
+
+      if (erc721TransferExempt[to_]) {
+        revert RecipientIsERC721TransferExempt();
+      }
+
       // Transfer 1 * units ERC-20 and 1 ERC-721 token.
+      // ERC-721 transfer exemptions handled above. Can't make it to this point if either is transfer exempt.
       _transferERC20(from_, to_, units);
       _transferERC721(from_, to_, id);
     } else {
@@ -227,6 +237,7 @@ abstract contract ERC404 is IERC404 {
       }
 
       // Transferring ERC-20s directly requires the _transfer function.
+      // Handles ERC-721 exemptions internally.
       _transferERC20WithERC721(from_, to_, value);
     }
 
@@ -235,7 +246,8 @@ abstract contract ERC404 is IERC404 {
 
   /// @notice Function for ERC-20 transfers.
   /// @dev This function assumes the operator is attempting to transfer as ERC-20
-  ///      given this function is only supported on the ERC-20 interface
+  ///      given this function is only supported on the ERC-20 interface. 
+  ///      Treats even small amounts that are valid ERC-721 ids as ERC-20s.
   function transfer(address to_, uint256 value_) public virtual returns (bool) {
     // Prevent burning tokens to 0x0.
     if (to_ == address(0)) {
@@ -243,6 +255,7 @@ abstract contract ERC404 is IERC404 {
     }
 
     // Transferring ERC-20s directly requires the _transfer function.
+    // Handles ERC-721 exemptions internally.
     return _transferERC20WithERC721(msg.sender, to_, value_);
   }
 
@@ -399,6 +412,7 @@ abstract contract ERC404 is IERC404 {
   /// @notice Consolidated record keeping function for transferring ERC-721s.
   /// @dev Assign the token to the new owner, and remove from the old owner.
   /// Note that this function allows transfers to and from 0x0.
+  /// Does not handle ERC-721 exemptions.
   function _transferERC721(
     address from_,
     address to_,
@@ -437,6 +451,7 @@ abstract contract ERC404 is IERC404 {
   }
 
   /// @notice Internal function for ERC-20 transfers. Also handles any ERC-721 transfers that may be required.
+  // Handles ERC-721 exemptions.
   function _transferERC20WithERC721(
     address from_,
     address to_,
@@ -537,7 +552,7 @@ abstract contract ERC404 is IERC404 {
 
   /// @notice Internal function for ERC20 minting
   /// @dev This function will allow minting of new ERC20s.
-  ///      If mintCorrespondingERC721s_ is true, it will also mint the corresponding ERC721s.
+  ///      If mintCorrespondingERC721s_ is true, and the recipient is not ERC-721 exempt, it will also mint the corresponding ERC721s.
   function _mintERC20(
     address to_,
     uint256 value_,
@@ -550,10 +565,11 @@ abstract contract ERC404 is IERC404 {
 
     _transferERC20(address(0), to_, value_);
 
-    // If mintCorrespondingERC721s_ is true, mint the corresponding ERC721s.
-    if (mintCorrespondingERC721s_) {
+    // If mintCorrespondingERC721s_ is true, and the recipient is not ERC-721 transfer exempt, mint the corresponding ERC721s.
+    if (mintCorrespondingERC721s_ && !erc721TransferExempt[to_]) {
       uint256 nftsToRetrieveOrMint = value_ / units;
       for (uint256 i = 0; i < nftsToRetrieveOrMint;) {
+        // ERC-721 exemptions handled above.
         _retrieveOrMintERC721(to_);
         unchecked {
           i++;
@@ -565,6 +581,7 @@ abstract contract ERC404 is IERC404 {
   /// @notice Internal function for ERC-721 minting and retrieval from the bank.
   /// @dev This function will allow minting of new ERC-721s up to the total fractional supply. It will
   ///      first try to pull from the bank, and if the bank is empty, it will mint a new token.
+  /// Does not handle ERC-721 exemptions.
   function _retrieveOrMintERC721(address to_) internal virtual {
     if (to_ == address(0)) {
       revert InvalidRecipient();
@@ -591,11 +608,13 @@ abstract contract ERC404 is IERC404 {
     }
 
     // Transfer the token to the recipient, either transferring from the contract's bank or minting.
+    // Does not handle ERC-721 exemptions.
     _transferERC721(erc721Owner, to_, id);
   }
 
   /// @notice Internal function for ERC-721 deposits to bank (this contract).
   /// @dev This function will allow depositing of ERC-721s to the bank, which can be retrieved by future minters.
+  // Does not handle ERC-721 exemptions.
   function _withdrawAndStoreERC721(address from_) internal virtual {
     if (from_ == address(0)) {
       revert InvalidSender();
@@ -605,6 +624,7 @@ abstract contract ERC404 is IERC404 {
     uint256 id = _owned[from_][_owned[from_].length - 1];
 
     // Transfer the token to the contract.
+    // Does not handle ERC-721 exemptions.
     _transferERC721(from_, address(0), id);
 
     // Record the token in the contract's bank queue.
