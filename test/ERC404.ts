@@ -854,7 +854,39 @@ describe("ERC404", function () {
     })
 
     context("Recipient is ERC-721 transfer exempt", function () {
-      // it("Succeeds when transferring as ERC-20 ")
+      it("Succeeds when transferring as ERC-20", async function () {
+        const f = await loadFixture(
+          deployMinimalERC404WithERC20sAndERC721sMinted,
+        )
+
+        const from = f.signers[0]
+        const to = f.signers[3]
+        const value = (await f.contract.erc721TotalSupply()) + 1n
+
+        // Confirm the sender holds sufficient balance.
+        expect(await f.contract.erc20BalanceOf(from.address)).to.be.gte(value)
+
+        await f.contract.setERC721TransferExempt(to.address, true)
+
+        // Confirm that the 'to' address is ERC-721 transfer exempt.
+        expect(await f.contract.erc721TransferExempt(to.address)).to.equal(true)
+
+        // Confirm that the 'from' address is not ERC-721 transfer exempt.
+        expect(await f.contract.erc721TransferExempt(from.address)).to.equal(
+          false,
+        )
+
+        // 'from' has to grant themselves sufficient allowance to spend their own tokens using transferFrom
+        await f.contract.connect(from).approve(from.address, value)
+
+        // Attempt to send 1 ERC-20.
+        return expect(
+          f.contract
+            .connect(from)
+            .transferFrom(from.address, to.address, value),
+        ).to.emit(f.contract, "ERC20Transfer")
+      })
+
       it("Reverts when transferring as ERC-721", async function () {
         const f = await loadFixture(
           deployMinimalERC404WithERC20sAndERC721sMinted,
@@ -889,6 +921,41 @@ describe("ERC404", function () {
     })
 
     context("Sender is ERC-721 transfer exempt", function () {
+      it("Succeeds when transferring as ERC-20", async function () {
+        const f = await loadFixture(
+          deployMinimalERC404WithERC20sAndERC721sMinted,
+        )
+
+        const from = f.signers[0]
+        const to = f.signers[3]
+        const value = (await f.contract.erc721TotalSupply()) + 1n
+
+        // Confirm the sender holds sufficient balance.
+        expect(await f.contract.erc20BalanceOf(from.address)).to.be.gte(value)
+
+        await f.contract.setERC721TransferExempt(from.address, true)
+
+        // Confirm that the 'to' address is not ERC-721 transfer exempt.
+        expect(await f.contract.erc721TransferExempt(to.address)).to.equal(
+          false,
+        )
+
+        // Confirm that the 'from' address is ERC-721 transfer exempt.
+        expect(await f.contract.erc721TransferExempt(from.address)).to.equal(
+          true,
+        )
+
+        // 'from' has to grant themselves sufficient allowance to spend their own tokens using transferFrom
+        await f.contract.connect(from).approve(from.address, value)
+
+        // Attempt to send 1 ERC-20.
+        return expect(
+          f.contract
+            .connect(from)
+            .transferFrom(from.address, to.address, value),
+        ).to.emit(f.contract, "ERC20Transfer")
+      })
+
       it("Reverts when transferring as ERC-721", async function () {
         const f = await loadFixture(
           deployMinimalERC404WithERC20sAndERC721sMinted,
@@ -927,6 +994,42 @@ describe("ERC404", function () {
     context(
       "Both sender and recipient are ERC-721 transfer exempt",
       function () {
+        it("Succeeds when transferring as ERC-20", async function () {
+          const f = await loadFixture(
+            deployMinimalERC404WithERC20sAndERC721sMinted,
+          )
+
+          const from = f.signers[0]
+          const to = f.signers[3]
+          const value = (await f.contract.erc721TotalSupply()) + 1n
+
+          // Confirm the sender holds sufficient balance.
+          expect(await f.contract.erc20BalanceOf(from.address)).to.be.gte(value)
+
+          await f.contract.setERC721TransferExempt(to.address, true)
+          await f.contract.setERC721TransferExempt(from.address, true)
+
+          // Confirm that the 'to' address is ERC-721 transfer exempt.
+          expect(await f.contract.erc721TransferExempt(to.address)).to.equal(
+            true,
+          )
+
+          // Confirm that the 'from' address is ERC-721 transfer exempt.
+          expect(await f.contract.erc721TransferExempt(from.address)).to.equal(
+            true,
+          )
+
+          // 'from' has to grant themselves sufficient allowance to spend their own tokens using transferFrom
+          await f.contract.connect(from).approve(from.address, value)
+
+          // Attempt to send 1 ERC-20.
+          return expect(
+            f.contract
+              .connect(from)
+              .transferFrom(from.address, to.address, value),
+          ).to.emit(f.contract, "ERC20Transfer")
+        })
+
         it("Reverts when transferring as ERC-721", async function () {
           const f = await loadFixture(
             deployMinimalERC404WithERC20sAndERC721sMinted,
