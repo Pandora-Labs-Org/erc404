@@ -354,6 +354,12 @@ abstract contract ERC404 is IERC404 {
       interfaceId == type(IERC165).interfaceId;
   }
 
+  function rebalance(address account_) public virtual {
+    uint256 erc20Balance = erc20BalanceOf(account_);
+    uint256 erc721Balance = erc721BalanceOf(account_);
+
+  }
+
   /// @notice Internal function to compute domain separator for EIP-2612 permits
   function _computeDomainSeparator() internal view virtual returns (bytes32) {
     return
@@ -601,17 +607,6 @@ abstract contract ERC404 is IERC404 {
 
   /// @notice Initialization function to set pairs / etc, saving gas by avoiding mint / burn on unnecessary targets
   function _setWhitelist(address target_, bool state_) internal virtual {
-    // Prevents wallets that hold don't hold a matching amount of ERC-20s and ERC-721s from getting removed from the whitelist and their future transfers reverting due to not having the correct number of ERC-721s.
-    if (erc20BalanceOf(target_) / units != erc721BalanceOf(target_) && !state_) {
-      revert CannotRemoveFromWhitelist();
-    }
-
-    // Cannot add addresses to the whitelist that hold an ERC-721.
-    // Prevents wallets that hold ERC-721s from getting added to the whitelist and their ERC-721s getting trapped.
-    if (erc721BalanceOf(target_) > 0 && state_) {
-      revert CannotAddToWhitelist();
-    }
-
     // Set the whitelist state.
     whitelist[target_] = state_;
 
