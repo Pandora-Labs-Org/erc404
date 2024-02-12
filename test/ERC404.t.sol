@@ -1001,7 +1001,7 @@ contract Erc404SetApprovalTest is Test {
         uint256 allowanceToSet = minted + 1;
 
         vm.expectEmit(false, false, false, true);
-        emit ERC20Approval(initialOwner_, intendedOperator, minted + 1);
+        emit ERC20Approval(initialOwner_, intendedOperator, allowanceToSet);
 
         vm.prank(initialOwner_);
         minimalContract_.approve(intendedOperator, minted + 1);
@@ -1010,6 +1010,16 @@ contract Erc404SetApprovalTest is Test {
 
         // Confirm that a corresponding ERC-721 approval for the allowanceToSet value was not set.
         assertEq(minimalContract_.getApproved(allowanceToSet), address(0));
+    }
+
+    function test_reverts_grantAddressZeroAllowance() public {
+        // Reverts if a user attempts to grant 0x0 an ERC-20 token allowance
+        uint256 minted = minimalContract_.erc721TotalSupply();
+        uint256 allowanceToSet = minted + 1;
+
+        vm.expectRevert(IERC404.InvalidSpender.selector);
+        vm.prank(initialOwner_);
+        minimalContract_.approve(address(0), allowanceToSet);
     }
 }
 
