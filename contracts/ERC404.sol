@@ -214,6 +214,7 @@ abstract contract ERC404 is IERC404 {
       }
 
       // Transfer 1 * units ERC-20 and 1 ERC-721 token.
+      // TODO: DOES NOT HANDLE ERC-721 EXEMPTIONS!
       _transferERC20(from_, to_, units);
       _transferERC721(from_, to_, id);
     } else {
@@ -227,6 +228,7 @@ abstract contract ERC404 is IERC404 {
       }
 
       // Transferring ERC-20s directly requires the _transfer function.
+      // Handles ERC-721 exemptions internally.
       _transferERC20WithERC721(from_, to_, value);
     }
 
@@ -243,6 +245,7 @@ abstract contract ERC404 is IERC404 {
     }
 
     // Transferring ERC-20s directly requires the _transfer function.
+    // Handles ERC-721 exemptions internally.
     return _transferERC20WithERC721(msg.sender, to_, value_);
   }
 
@@ -399,6 +402,7 @@ abstract contract ERC404 is IERC404 {
   /// @notice Consolidated record keeping function for transferring ERC-721s.
   /// @dev Assign the token to the new owner, and remove from the old owner.
   /// Note that this function allows transfers to and from 0x0.
+  /// Does not handle ERC-721 exemptions.
   function _transferERC721(
     address from_,
     address to_,
@@ -437,6 +441,7 @@ abstract contract ERC404 is IERC404 {
   }
 
   /// @notice Internal function for ERC-20 transfers. Also handles any ERC-721 transfers that may be required.
+  // Handles ERC-721 exemptions.
   function _transferERC20WithERC721(
     address from_,
     address to_,
@@ -528,7 +533,7 @@ abstract contract ERC404 is IERC404 {
 
   /// @notice Internal function for ERC20 minting
   /// @dev This function will allow minting of new ERC20s.
-  ///      If mintCorrespondingERC721s_ is true, it will also mint the corresponding ERC721s.
+  ///      If mintCorrespondingERC721s_ is true, and the recipient is not ERC-721 exempt, it will also mint the corresponding ERC721s.
   function _mintERC20(
     address to_,
     uint256 value_,
@@ -541,8 +546,8 @@ abstract contract ERC404 is IERC404 {
 
     _transferERC20(address(0), to_, value_);
 
-    // If mintCorrespondingERC721s_ is true, mint the corresponding ERC721s.
-    if (mintCorrespondingERC721s_) {
+    // If mintCorrespondingERC721s_ is true, and the recipient is not ERC-721 transfer exempt, mint the corresponding ERC721s.
+    if (mintCorrespondingERC721s_ && !erc721TransferExempt[to_]) {
       uint256 nftsToRetrieveOrMint = value_ / units;
       for (uint256 i = 0; i < nftsToRetrieveOrMint; i++) {
         _retrieveOrMintERC721(to_);
