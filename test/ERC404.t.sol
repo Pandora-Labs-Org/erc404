@@ -45,7 +45,7 @@ contract Erc404Test is Test {
 
     function test_initialWhitelist() public {
         // Initializes the whitelist with the initial mint recipient
-        assertTrue(simpleContract_.whitelist(initialMintRecipient_));
+        assertTrue(simpleContract_.erc721TransferExempt(initialMintRecipient_));
     }
 
     function test_tokenTransfer(uint8 nftToTransfer, address randomAddress) public {
@@ -181,7 +181,9 @@ contract Erc404MintingStorageAndRetrievalTest is Test {
         vm.assume(nftQty > 0 && nftQty < maxTotalSupplyNft_);
         vm.assume(recipient1 != address(0) && recipient1 != initialOwner_ && recipient1 != address(minimalContract_));
         vm.assume(recipient2 != address(0) && recipient2 != initialOwner_ && recipient2 != address(minimalContract_));
-        vm.assume(!minimalContract_.whitelist(recipient1) && !minimalContract_.whitelist(recipient2));
+        vm.assume(
+            !minimalContract_.erc721TransferExempt(recipient1) && !minimalContract_.erc721TransferExempt(recipient2)
+        );
 
         // Total supply should be 0
         assertEq(minimalContract_.erc721TotalSupply(), 0);
@@ -233,7 +235,9 @@ contract Erc404MintingStorageAndRetrievalTest is Test {
         vm.assume(nftQty > 0 && nftQty < maxTotalSupplyNft_);
         vm.assume(recipient1 != address(0) && recipient1 != initialOwner_ && recipient1 != address(minimalContract_));
         vm.assume(recipient2 != address(0) && recipient2 != initialOwner_ && recipient2 != address(minimalContract_));
-        vm.assume(!minimalContract_.whitelist(recipient1) && !minimalContract_.whitelist(recipient2));
+        vm.assume(
+            !minimalContract_.erc721TransferExempt(recipient1) && !minimalContract_.erc721TransferExempt(recipient2)
+        );
 
         uint256 value = nftQty * units_;
 
@@ -296,7 +300,7 @@ contract ERC404TransferLogicTest is Test {
 
         // Add the owner to the whitelist
         vm.prank(initialOwner_);
-        simpleContract_.setWhitelist(initialOwner_, true);
+        simpleContract_.setERC721TransferExempt(initialOwner_, true);
 
         vm.prank(initialMintRecipient_);
         simpleContract_.transfer(alice, maxTotalSupplyNft_ * units_);
@@ -634,20 +638,20 @@ contract Erc404SetWhitelistTest is Test {
 
     function test_setWhitelist_ownerAddAndRemove(address a) public {
         vm.assume(a != initialMintRecipient_);
-        vm.assume(!simpleContract_.whitelist(a));
-        assertFalse(simpleContract_.whitelist(a));
+        vm.assume(!simpleContract_.erc721TransferExempt(a));
+        assertFalse(simpleContract_.erc721TransferExempt(a));
 
         // Add a random address to the whitelist
         vm.prank(initialOwner_);
-        simpleContract_.setWhitelist(a, true);
+        simpleContract_.setERC721TransferExempt(a, true);
 
-        assertTrue(simpleContract_.whitelist(a));
+        assertTrue(simpleContract_.erc721TransferExempt(a));
 
         // Remove the random address from the whitelist
         vm.prank(initialOwner_);
-        simpleContract_.setWhitelist(a, false);
+        simpleContract_.setERC721TransferExempt(a, false);
 
-        assertFalse(simpleContract_.whitelist(a));
+        assertFalse(simpleContract_.erc721TransferExempt(a));
     }
 
     function test_revert_setWhitelist_removeAddressWithErc20Balance(address a) public {
@@ -656,8 +660,8 @@ contract Erc404SetWhitelistTest is Test {
         vm.assume(a != initialMintRecipient_);
         vm.assume(a != initialOwner_);
         vm.assume(a != address(0));
-        vm.assume(!simpleContract_.whitelist(a));
-        assertFalse(simpleContract_.whitelist(a));
+        vm.assume(!simpleContract_.erc721TransferExempt(a));
+        assertFalse(simpleContract_.erc721TransferExempt(a));
 
         // Transfer 1 full NFT worth of tokens to that address.
         vm.prank(initialMintRecipient_);
@@ -667,16 +671,16 @@ contract Erc404SetWhitelistTest is Test {
 
         // Add a random address to the whitelist
         vm.prank(initialOwner_);
-        simpleContract_.setWhitelist(a, true);
+        simpleContract_.setERC721TransferExempt(a, true);
 
-        assertTrue(simpleContract_.whitelist(a));
+        assertTrue(simpleContract_.erc721TransferExempt(a));
 
         // Attempt to remove the random address from the whitelist
-        vm.expectRevert(IERC404.CannotRemoveFromWhitelist.selector);
+        vm.expectRevert(IERC404.CannotRemoveFromERC721TransferExempt.selector);
         vm.prank(initialOwner_);
-        simpleContract_.setWhitelist(a, false);
+        simpleContract_.setERC721TransferExempt(a, false);
 
-        assertTrue(simpleContract_.whitelist(a));
+        assertTrue(simpleContract_.erc721TransferExempt(a));
     }
 }
 
