@@ -818,274 +818,289 @@ describe("ERC404", function () {
   })
 
   describe("#transferFrom", function () {
-    it("Doesn't allow anyone to transfer from 0x0", async function () {
-      const f = await loadFixture(deployExampleERC404)
+    context("For both transferring ERC-20 or ERC-721", function () {
+      it("Doesn't allow anyone to transfer from 0x0", async function () {
+        const f = await loadFixture(deployExampleERC404)
 
-      // Attempt to transfer from 0x0. This will always fail as it's not possible for the 0x0 address to sign a transaction, so it can neither send a transfer nor give another address an allowance.
-      await expect(
-        f.contract
-          .connect(f.signers[0])
-          .transferFrom(ethers.ZeroAddress, f.signers[1].address, 1n),
-      ).to.be.revertedWithCustomError(f.contract, "InvalidSender")
-    })
+        const erc721TotalSupply = await f.contract.erc721TotalSupply()
 
-    it("Doesn't allow anyone to transfer to 0x0", async function () {
-      const f = await loadFixture(deployExampleERC404)
+        const tokenId = erc721TotalSupply
+        const value = erc721TotalSupply + 1n
 
-      // Attempt to transfer to 0x0.
-      await expect(
-        f.contract
-          .connect(f.signers[0])
-          .transferFrom(f.signers[0], ethers.ZeroAddress, 1n),
-      ).to.be.revertedWithCustomError(f.contract, "InvalidRecipient")
-    })
-
-    it("Doesn't allow anyone to transfer from 0x0 to 0x0", async function () {
-      const f = await loadFixture(deployExampleERC404)
-
-      // Attempt to transfer to 0x0 from 0x0.
-      await expect(
-        f.contract
-          .connect(f.signers[0])
-          .transferFrom(ethers.ZeroAddress, ethers.ZeroAddress, 1n),
-      ).to.be.revertedWithCustomError(f.contract, "InvalidSender")
-    })
-
-    context("Operator owns the token to be moved", function () {
-      // This test case proves that the operator cannot use transferFrom to transfer a token they own if they provide the wrong 'from' address.
-      it("Reverts when attempting to transfer a token that operator owns, but that 'from' does not own", async function () {
-        const f = await loadFixture(
-          deployMinimalERC404WithERC20sAndERC721sMinted,
-        )
-
-        const tokenId = 1n
-        const operator = f.signers[0]
-        const wrongFrom = f.signers[2]
-        const to = f.signers[3]
-
-        // Confirm that the target token exists, and that it has a non-0x0 owner.
-        expect(await f.contract.ownerOf(tokenId)).to.not.equal(
-          ethers.ZeroAddress,
-        )
-
-        // Confirm that the operator owns the token.
-        expect(await f.contract.ownerOf(tokenId)).to.equal(operator.address)
-
-        // Confirm that the owner of the token is not the wrongFrom address.
-        expect(await f.contract.ownerOf(tokenId)).to.not.equal(
-          wrongFrom.address,
-        )
-
-        // Confirm that to address does not own the token either.
-        expect(await f.contract.ownerOf(tokenId)).to.not.equal(to.address)
-
-        // Attempt to send 1 ERC-721.
+        // Attempt to transfer from 0x0. This will always fail as it's not possible for the 0x0 address to sign a transaction, so it can neither send a transfer nor give another address an allowance.
         await expect(
           f.contract
-            .connect(operator)
-            .transferFrom(wrongFrom.address, to.address, tokenId),
-        ).to.be.revertedWithCustomError(f.contract, "Unauthorized")
+            .connect(f.signers[0])
+            .transferFrom(ethers.ZeroAddress, f.signers[1].address, 1n),
+        ).to.be.revertedWithCustomError(f.contract, "InvalidSender")
       })
 
-      it("Succeeds when transferring a token the operator owns, with the operator as 'from'", async function () {
-        const f = await loadFixture(
-          deployMinimalERC404WithERC20sAndERC721sMinted,
-        )
+      it("Doesn't allow anyone to transfer to 0x0", async function () {
+        const f = await loadFixture(deployExampleERC404)
 
-        const tokenId = 1n
-        const operator = f.signers[0]
-        const to = f.signers[3]
-
-        // Confirm that the target token exists, and that it has a non-0x0 owner.
-        expect(await f.contract.ownerOf(tokenId)).to.not.equal(
-          ethers.ZeroAddress,
-        )
-
-        // Confirm that the operator owns the token.
-        expect(await f.contract.ownerOf(tokenId)).to.equal(operator.address)
-
-        // Confirm that to address does not own the token either.
-        expect(await f.contract.ownerOf(tokenId)).to.not.equal(to.address)
-
-        // console.log(await f.contract.owned(operator.address))
-
-        // Attempt to send 1 ERC-721.
+        // Attempt to transfer to 0x0.
         await expect(
           f.contract
-            .connect(operator)
-            .transferFrom(operator.address, to.address, tokenId),
-        ).not.to.be.reverted
+            .connect(f.signers[0])
+            .transferFrom(f.signers[0], ethers.ZeroAddress, 1n),
+        ).to.be.revertedWithCustomError(f.contract, "InvalidRecipient")
+      })
+
+      it("Doesn't allow anyone to transfer from 0x0 to 0x0", async function () {
+        const f = await loadFixture(deployExampleERC404)
+
+        // Attempt to transfer to 0x0 from 0x0.
+        await expect(
+          f.contract
+            .connect(f.signers[0])
+            .transferFrom(ethers.ZeroAddress, ethers.ZeroAddress, 1n),
+        ).to.be.revertedWithCustomError(f.contract, "InvalidSender")
       })
     })
 
-    context("Operator does not own the token to be moved", function () {
-      context("No approvals have been set", function () {
-        it("Reverts when attempting to transfer a token that 'from' does not own", async function () {
+    context("Transferring as ERC-721", function () {
+      context("Operator owns the token to be moved", function () {
+        // This test case proves that the operator cannot use transferFrom to transfer a token they own if they provide the wrong 'from' address.
+        it("Reverts when attempting to transfer a token that operator owns, but that 'from' does not own", async function () {
           const f = await loadFixture(
             deployMinimalERC404WithERC20sAndERC721sMinted,
           )
 
-          const operator = f.signers[1]
+          const tokenId = 1n
+          const operator = f.signers[0]
           const wrongFrom = f.signers[2]
           const to = f.signers[3]
 
           // Confirm that the target token exists, and that it has a non-0x0 owner.
-          expect(await f.contract.ownerOf(1n)).to.not.equal(ethers.ZeroAddress)
+          expect(await f.contract.ownerOf(tokenId)).to.not.equal(
+            ethers.ZeroAddress,
+          )
 
           // Confirm that the operator owns the token.
-          expect(await f.contract.ownerOf(1n)).to.not.equal(operator.address)
+          expect(await f.contract.ownerOf(tokenId)).to.equal(operator.address)
 
-          // Confirm that 'wrongFrom' does not own the token.
-          expect(await f.contract.ownerOf(1n)).to.not.equal(wrongFrom.address)
+          // Confirm that the owner of the token is not the wrongFrom address.
+          expect(await f.contract.ownerOf(tokenId)).to.not.equal(
+            wrongFrom.address,
+          )
 
-          // Confirm that 'to does not own the token.
-          expect(await f.contract.ownerOf(1n)).to.not.equal(to.address)
-
-          // Confirm that no approvals have been set.
-          expect(await f.contract.getApproved(1n)).to.equal(ethers.ZeroAddress)
-          expect(
-            await f.contract.isApprovedForAll(
-              wrongFrom.address,
-              operator.address,
-            ),
-          ).to.equal(false)
+          // Confirm that to address does not own the token either.
+          expect(await f.contract.ownerOf(tokenId)).to.not.equal(to.address)
 
           // Attempt to send 1 ERC-721.
           await expect(
             f.contract
               .connect(operator)
-              .transferFrom(wrongFrom.address, to.address, 1n),
+              .transferFrom(wrongFrom.address, to.address, tokenId),
           ).to.be.revertedWithCustomError(f.contract, "Unauthorized")
+        })
+
+        it("Succeeds when transferring a token the operator owns, with the operator as 'from'", async function () {
+          const f = await loadFixture(
+            deployMinimalERC404WithERC20sAndERC721sMinted,
+          )
+
+          const tokenId = 1n
+          const operator = f.signers[0]
+          const to = f.signers[3]
+
+          // Confirm that the target token exists, and that it has a non-0x0 owner.
+          expect(await f.contract.ownerOf(tokenId)).to.not.equal(
+            ethers.ZeroAddress,
+          )
+
+          // Confirm that the operator owns the token.
+          expect(await f.contract.ownerOf(tokenId)).to.equal(operator.address)
+
+          // Confirm that to address does not own the token either.
+          expect(await f.contract.ownerOf(tokenId)).to.not.equal(to.address)
+
+          // console.log(await f.contract.owned(operator.address))
+
+          // Attempt to send 1 ERC-721.
+          await expect(
+            f.contract
+              .connect(operator)
+              .transferFrom(operator.address, to.address, tokenId),
+          ).not.to.be.reverted
         })
       })
 
-      context(
-        "Operator has been granted approval for all of 'from''s tokens",
-        function () {
-          it("Reverts when attempting to transfer a token that 'from' does not own", async function () {})
-
-          it("Succeeds when transferring a token that 'from's owns", async function () {
+      context("Operator does not own the token to be moved", function () {
+        context("No approvals have been set", function () {
+          it("Reverts when attempting to transfer a token that 'from' does not own", async function () {
             const f = await loadFixture(
               deployMinimalERC404WithERC20sAndERC721sMinted,
             )
 
-            const tokenId = 1n
-            const tokenOwner = f.signers[0]
-            const operator = f.signers[2]
+            const operator = f.signers[1]
+            const wrongFrom = f.signers[2]
             const to = f.signers[3]
 
             // Confirm that the target token exists, and that it has a non-0x0 owner.
-            expect(await f.contract.ownerOf(tokenId)).to.not.equal(
+            expect(await f.contract.ownerOf(1n)).to.not.equal(
               ethers.ZeroAddress,
             )
 
-            // Confirm that the operator does not own the token.
-            expect(await f.contract.ownerOf(tokenId)).to.not.equal(
-              operator.address,
+            // Confirm that the operator owns the token.
+            expect(await f.contract.ownerOf(1n)).to.not.equal(operator.address)
+
+            // Confirm that 'wrongFrom' does not own the token.
+            expect(await f.contract.ownerOf(1n)).to.not.equal(wrongFrom.address)
+
+            // Confirm that 'to does not own the token.
+            expect(await f.contract.ownerOf(1n)).to.not.equal(to.address)
+
+            // Confirm that no approvals have been set.
+            expect(await f.contract.getApproved(1n)).to.equal(
+              ethers.ZeroAddress,
             )
-
-            // Confirm that to address does not own the token.
-            expect(await f.contract.ownerOf(tokenId)).to.not.equal(to.address)
-
-            // Confirm that the owner owns the token.
-            expect(await f.contract.ownerOf(tokenId)).to.equal(
-              tokenOwner.address,
-            )
-
-            // Approve the operator to move all of the owner's tokens.
-            await f.contract
-              .connect(tokenOwner)
-              .setApprovalForAll(operator.address, true)
-
-            // Confirm that the operator has been approved to move all of the owner's tokens.
             expect(
               await f.contract.isApprovedForAll(
-                tokenOwner.address,
+                wrongFrom.address,
                 operator.address,
               ),
-            ).to.equal(true)
-
-            // Confirm that the operator has not been approved to move the specific token (since we're testing setApprovalForAll).
-            expect(await f.contract.getApproved(tokenId)).to.equal(
-              ethers.ZeroAddress,
-            )
+            ).to.equal(false)
 
             // Attempt to send 1 ERC-721.
             await expect(
               f.contract
                 .connect(operator)
-                .transferFrom(tokenOwner.address, to.address, tokenId),
-            ).not.to.be.reverted
+                .transferFrom(wrongFrom.address, to.address, 1n),
+            ).to.be.revertedWithCustomError(f.contract, "Unauthorized")
           })
-        },
-      )
+        })
 
-      context(
-        "Operator has been granted single token approval for a token",
-        function () {
-          context(
-            "The approved token correctly belongs to 'from'",
-            function () {
-              it("Succeeds", async function () {
-                const f = await loadFixture(
-                  deployMinimalERC404WithERC20sAndERC721sMinted,
-                )
+        context(
+          "Operator has been granted approval for all of 'from''s tokens",
+          function () {
+            it("Reverts when attempting to transfer a token that 'from' does not own", async function () {})
 
-                const tokenId = 1n
-                const tokenOwner = f.signers[0]
-                const operator = f.signers[2]
-                const to = f.signers[3]
+            it("Succeeds when transferring a token that 'from's owns", async function () {
+              const f = await loadFixture(
+                deployMinimalERC404WithERC20sAndERC721sMinted,
+              )
 
-                // Confirm that the target token exists, and that it has a non-0x0 owner.
-                expect(await f.contract.ownerOf(tokenId)).to.not.equal(
-                  ethers.ZeroAddress,
-                )
+              const tokenId = 1n
+              const tokenOwner = f.signers[0]
+              const operator = f.signers[2]
+              const to = f.signers[3]
 
-                // Confirm that the operator does not own the token.
-                expect(await f.contract.ownerOf(tokenId)).to.not.equal(
-                  operator.address,
-                )
+              // Confirm that the target token exists, and that it has a non-0x0 owner.
+              expect(await f.contract.ownerOf(tokenId)).to.not.equal(
+                ethers.ZeroAddress,
+              )
 
-                // Confirm that to address does not own the token.
-                expect(await f.contract.ownerOf(tokenId)).to.not.equal(
-                  to.address,
-                )
+              // Confirm that the operator does not own the token.
+              expect(await f.contract.ownerOf(tokenId)).to.not.equal(
+                operator.address,
+              )
 
-                // Confirm that the owner owns the token.
-                expect(await f.contract.ownerOf(tokenId)).to.equal(
+              // Confirm that to address does not own the token.
+              expect(await f.contract.ownerOf(tokenId)).to.not.equal(to.address)
+
+              // Confirm that the owner owns the token.
+              expect(await f.contract.ownerOf(tokenId)).to.equal(
+                tokenOwner.address,
+              )
+
+              // Approve the operator to move all of the owner's tokens.
+              await f.contract
+                .connect(tokenOwner)
+                .setApprovalForAll(operator.address, true)
+
+              // Confirm that the operator has been approved to move all of the owner's tokens.
+              expect(
+                await f.contract.isApprovedForAll(
                   tokenOwner.address,
-                )
-
-                // Approve the operator to move the token.
-                await f.contract
-                  .connect(tokenOwner)
-                  .approve(operator.address, tokenId)
-
-                // Confirm that the operator has been approved to move the token.
-                expect(await f.contract.getApproved(tokenId)).to.equal(
                   operator.address,
-                )
+                ),
+              ).to.equal(true)
 
-                // Confirm that the operator has not been approved to move all of the owner's tokens.
-                expect(
-                  await f.contract.isApprovedForAll(
-                    tokenOwner.address,
+              // Confirm that the operator has not been approved to move the specific token (since we're testing setApprovalForAll).
+              expect(await f.contract.getApproved(tokenId)).to.equal(
+                ethers.ZeroAddress,
+              )
+
+              // Attempt to send 1 ERC-721.
+              await expect(
+                f.contract
+                  .connect(operator)
+                  .transferFrom(tokenOwner.address, to.address, tokenId),
+              ).not.to.be.reverted
+            })
+          },
+        )
+
+        context(
+          "Operator has been granted single token approval for a token",
+          function () {
+            context(
+              "The approved token correctly belongs to 'from'",
+              function () {
+                it("Succeeds", async function () {
+                  const f = await loadFixture(
+                    deployMinimalERC404WithERC20sAndERC721sMinted,
+                  )
+
+                  const tokenId = 1n
+                  const tokenOwner = f.signers[0]
+                  const operator = f.signers[2]
+                  const to = f.signers[3]
+
+                  // Confirm that the target token exists, and that it has a non-0x0 owner.
+                  expect(await f.contract.ownerOf(tokenId)).to.not.equal(
+                    ethers.ZeroAddress,
+                  )
+
+                  // Confirm that the operator does not own the token.
+                  expect(await f.contract.ownerOf(tokenId)).to.not.equal(
                     operator.address,
-                  ),
-                ).to.equal(false)
+                  )
 
-                // Attempt to send 1 ERC-721.
-                await expect(
-                  f.contract
-                    .connect(operator)
-                    .transferFrom(tokenOwner.address, to.address, tokenId),
-                ).not.to.be.reverted
-              })
-            },
-          )
-        },
-      )
+                  // Confirm that to address does not own the token.
+                  expect(await f.contract.ownerOf(tokenId)).to.not.equal(
+                    to.address,
+                  )
+
+                  // Confirm that the owner owns the token.
+                  expect(await f.contract.ownerOf(tokenId)).to.equal(
+                    tokenOwner.address,
+                  )
+
+                  // Approve the operator to move the token.
+                  await f.contract
+                    .connect(tokenOwner)
+                    .approve(operator.address, tokenId)
+
+                  // Confirm that the operator has been approved to move the token.
+                  expect(await f.contract.getApproved(tokenId)).to.equal(
+                    operator.address,
+                  )
+
+                  // Confirm that the operator has not been approved to move all of the owner's tokens.
+                  expect(
+                    await f.contract.isApprovedForAll(
+                      tokenOwner.address,
+                      operator.address,
+                    ),
+                  ).to.equal(false)
+
+                  // Attempt to send 1 ERC-721.
+                  await expect(
+                    f.contract
+                      .connect(operator)
+                      .transferFrom(tokenOwner.address, to.address, tokenId),
+                  ).not.to.be.reverted
+                })
+              },
+            )
+          },
+        )
+      })
     })
+
+    context("Transferring as ERC-20", function () {})
   })
 
   describe("#transfer", function () {
@@ -1106,47 +1121,6 @@ describe("ERC404", function () {
     })
 
     // TODO more tests needed here, including testing that approvals work.
-  })
-
-  describe("#_setWhitelist", function () {
-    it("Allows the owner to add and remove addresses from the whitelist", async function () {
-      const f = await loadFixture(deployExampleERC404)
-
-      expect(await f.contract.whitelist(f.randomAddresses[1])).to.equal(false)
-
-      // Add a random address to the whitelist
-      await f.contract
-        .connect(f.signers[0])
-        .setWhitelist(f.randomAddresses[1], true)
-      expect(await f.contract.whitelist(f.randomAddresses[1])).to.equal(true)
-
-      // Remove the random address from the whitelist
-      await f.contract
-        .connect(f.signers[0])
-        .setWhitelist(f.randomAddresses[1], false)
-      expect(await f.contract.whitelist(f.randomAddresses[1])).to.equal(false)
-    })
-
-    it("An address cannot be removed from the whitelist while it has an ERC-20 balance >= 1 full token.", async function () {
-      const f = await loadFixture(deployExampleERC404)
-
-      const targetAddress = f.randomAddresses[0]
-
-      // Transfer 1 full NFT worth of tokens to that address.
-      await f.contract
-        .connect(f.signers[0])
-        .transfer(targetAddress, f.deployConfig.units)
-
-      expect(await f.contract.erc721BalanceOf(targetAddress)).to.equal(1n)
-
-      // Add that address to the whitelist.
-      await f.contract.connect(f.signers[0]).setWhitelist(targetAddress, true)
-
-      // Attempt to remove the random address from the whitelist.
-      await expect(
-        f.contract.connect(f.signers[0]).setWhitelist(targetAddress, false),
-      ).to.be.revertedWithCustomError(f.contract, "CannotRemoveFromWhitelist")
-    })
   })
 
   describe("#erc721BalanceOf", function () {
@@ -2057,6 +2031,181 @@ describe("ERC404", function () {
           // Expect the mint recipient to be the owner of token 2
           expect(await f.contract.ownerOf(2n)).to.equal(f.signers[0].address)
         })
+      })
+    })
+  })
+
+  describe("#_setWhitelist", function () {
+    context(
+      "Adding/removing an address with 0 ERC-20 and 0 ERC-721 balance",
+      function () {
+        it("Allows the owner to add and remove an address from the whitelist", async function () {
+          const f = await loadFixture(deployExampleERC404)
+
+          const address1 = f.randomAddresses[0]
+
+          expect(await f.contract.erc20BalanceOf(address1)).to.equal(0n)
+          expect(await f.contract.erc721BalanceOf(address1)).to.equal(0n)
+
+          expect(await f.contract.whitelist(address1)).to.equal(false)
+
+          // Add a random address to the whitelist
+          await f.contract.connect(f.signers[0]).setWhitelist(address1, true)
+
+          expect(await f.contract.whitelist(address1)).to.equal(true)
+
+          // Remove the random address from the whitelist
+          await f.contract.connect(f.signers[0]).setWhitelist(address1, false)
+          expect(await f.contract.whitelist(address1)).to.equal(false)
+        })
+      },
+    )
+
+    //     if (erc20BalanceOf(target_) / units != erc721BalanceOf(target_) && !state_) {
+    //   revert CannotRemoveFromWhitelist();
+    // }
+
+    //    if (erc721BalanceOf(target_) > 0 && state_) {
+    //   revert CannotAddToWhitelist();
+    // }
+
+    context(
+      "Address's number of whole ERC-20 tokens does not equal their ERC-721 balance",
+      function () {
+        it("Can be added to whitelist", async function () {
+          const f = await loadFixture(deployExampleERC404)
+
+          const targetAddress = f.randomAddresses[0]
+
+          // Add address to the whitelist.
+          await f.contract
+            .connect(f.signers[0])
+            .setWhitelist(targetAddress, true)
+
+          expect(await f.contract.whitelist(targetAddress)).to.equal(true)
+
+          // Transfer 1 full ERC-20 token, but it won't give them an ERC-721 since they are on the whitelist.
+          await f.contract
+            .connect(f.signers[0])
+            .transfer(targetAddress, f.deployConfig.units)
+
+          // Confirm that the address has 1 full ERC-20 token and 0 ERC-721 tokens, which is intended but out of balance.
+          expect(await f.contract.erc20BalanceOf(targetAddress)).to.equal(
+            f.deployConfig.units,
+          )
+          expect(await f.contract.erc721BalanceOf(targetAddress)).to.equal(0n)
+
+          // Already on whitelist, but try setting it again to show that it does not revert.
+          await expect(
+            f.contract.connect(f.signers[0]).setWhitelist(targetAddress, true),
+          ).to.not.be.reverted
+        })
+
+        it("Cannot be removed from whitelist", async function () {
+          const f = await loadFixture(deployExampleERC404)
+
+          const targetAddress = f.randomAddresses[0]
+
+          // Add address to the whitelist.
+          await f.contract
+            .connect(f.signers[0])
+            .setWhitelist(targetAddress, true)
+
+          expect(await f.contract.whitelist(targetAddress)).to.equal(true)
+
+          // Transfer 1 full ERC-20 token, but it won't give them an ERC-721 since they are on the whitelist.
+          await f.contract
+            .connect(f.signers[0])
+            .transfer(targetAddress, f.deployConfig.units)
+
+          // Confirm that the address has 1 full ERC-20 token and 0 ERC-721 tokens, which is intended but out of balance.
+          expect(await f.contract.erc20BalanceOf(targetAddress)).to.equal(
+            f.deployConfig.units,
+          )
+          expect(await f.contract.erc721BalanceOf(targetAddress)).to.equal(0n)
+
+          // Attempt to remove the random address from the whitelist.
+          await expect(
+            f.contract.connect(f.signers[0]).setWhitelist(targetAddress, false),
+          ).to.be.revertedWithCustomError(
+            f.contract,
+            "CannotRemoveFromWhitelist",
+          )
+        })
+      },
+    )
+
+    context.only("Address holds at least one ERC-721 token", function () {
+      it("Cannot be added to whitelist", async function () {
+        const f = await loadFixture(deployExampleERC404)
+
+        const targetAddress = f.randomAddresses[0]
+        const erc721Amount = 2n
+        const erc20Amount = f.deployConfig.units * erc721Amount
+
+        // Transfer 1 full NFT worth of tokens to that address.
+        await f.contract
+          .connect(f.signers[0])
+          .transfer(targetAddress, erc20Amount)
+
+        // ERC-20 and ERC-721 balances are balanced, and ERC-721 balance is >= 1.
+        expect(await f.contract.erc721BalanceOf(targetAddress)).to.be.gte(1n)
+        expect(await f.contract.erc721BalanceOf(targetAddress)).to.equal(
+          erc721Amount,
+        )
+        expect(await f.contract.erc20BalanceOf(targetAddress)).to.equal(
+          erc20Amount,
+        )
+
+        // Attempt to add the random address to the whitelist.
+        await expect(
+          f.contract.connect(f.signers[0]).setWhitelist(targetAddress, true),
+        ).to.be.revertedWithCustomError(f.contract, "CannotAddToWhitelist")
+      })
+
+      it("Can be removed from whitelist", async function () {
+        const f = await loadFixture(
+          deployMinimalERC404WithERC20sAndERC721sMinted,
+        )
+
+        const targetAddress = f.randomAddresses[0]
+        const erc721Id = 1n
+        const erc721Amount = 1n
+        const erc20Amount = f.deployConfig.units * erc721Amount
+
+        // Add that address to the whitelist.
+        await f.contract.connect(f.signers[0]).setWhitelist(targetAddress, true)
+
+        // Confirm the address is on the whitelist.
+        expect(await f.contract.whitelist(targetAddress)).to.equal(true)
+
+        // Confirm the sender owns the ERC-721 token we are about to transfer.
+        expect(await f.contract.ownerOf(erc721Id)).to.equal(
+          f.signers[0].address,
+        )
+
+        // Target address holds 0 balance of ERC-20 and ERC-721 tokens.
+        expect(await f.contract.erc721BalanceOf(targetAddress)).to.equal(0n)
+        expect(await f.contract.erc20BalanceOf(targetAddress)).to.equal(0n)
+
+        // Transfer 1 ERC-721 directly.
+        await f.contract
+          .connect(f.signers[0])
+          .transferFrom(f.signers[0], targetAddress, erc721Id)
+
+        // ERC-20 and ERC-721 balances are balanced, and ERC-721 balance is >= 1.
+        expect(await f.contract.erc721BalanceOf(targetAddress)).to.be.gte(1n)
+        expect(await f.contract.erc721BalanceOf(targetAddress)).to.equal(
+          erc721Amount,
+        )
+        expect(await f.contract.erc20BalanceOf(targetAddress)).to.equal(
+          erc20Amount,
+        )
+
+        // Attempt to remove the random address from the whitelist.
+        await expect(
+          f.contract.connect(f.signers[0]).setWhitelist(targetAddress, false),
+        ).to.not.be.reverted
       })
     })
   })

@@ -21,6 +21,7 @@ interface IERC404 is IERC165 {
     address indexed to,
     uint256 indexed id
   );
+  event WhitelistUpdated(address indexed account, bool isWhitelisted);
 
   error NotFound();
   error InvalidId();
@@ -35,6 +36,7 @@ interface IERC404 is IERC165 {
   error InsufficientAllowance();
   error DecimalsTooLow();
   error CannotRemoveFromWhitelist();
+  error CannotAddToWhitelist();
   error PermitDeadlineExpired();
   error InvalidSigner();
   error InvalidApproval();

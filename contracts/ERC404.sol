@@ -611,7 +611,11 @@ abstract contract ERC404 is IERC404 {
     if (erc721BalanceOf(target_) > 0 && state_) {
       revert CannotAddToWhitelist();
     }
+
+    // Set the whitelist state.
     whitelist[target_] = state_;
+
+    emit WhitelistUpdated(target_, state_);
   }
 
   function _getOwnerOf(
