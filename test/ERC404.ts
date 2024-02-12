@@ -853,6 +853,120 @@ describe("ERC404", function () {
       ).to.be.revertedWithCustomError(f.contract, "InvalidSender")
     })
 
+    context("Recipient is ERC-721 transfer exempt", function () {
+      // it("Succeeds when transferring as ERC-20 ")
+      it("Reverts when transferring as ERC-721", async function () {
+        const f = await loadFixture(
+          deployMinimalERC404WithERC20sAndERC721sMinted,
+        )
+
+        const tokenId = 1n
+        const from = f.signers[0]
+        const to = f.signers[3]
+
+        await f.contract
+          .connect(f.signers[0])
+          .setERC721TransferExempt(to.address, true)
+
+        // Confirm that the 'to' address is ERC-721 transfer exempt.
+        expect(await f.contract.erc721TransferExempt(to.address)).to.equal(true)
+
+        // Confirm that the 'from' address is not ERC-721 transfer exempt.
+        expect(await f.contract.erc721TransferExempt(from.address)).to.equal(
+          false,
+        )
+
+        // Attempt to send 1 ERC-721.
+        await expect(
+          f.contract
+            .connect(from)
+            .transferFrom(from.address, to.address, tokenId),
+        ).to.be.revertedWithCustomError(
+          f.contract,
+          "RecipientIsERC721TransferExempt",
+        )
+      })
+    })
+
+    context("Sender is ERC-721 transfer exempt", function () {
+      it("Reverts when transferring as ERC-721", async function () {
+        const f = await loadFixture(
+          deployMinimalERC404WithERC20sAndERC721sMinted,
+        )
+
+        const tokenId = 1n
+        const from = f.signers[0]
+        const to = f.signers[3]
+
+        await f.contract
+          .connect(f.signers[0])
+          .setERC721TransferExempt(from.address, true)
+
+        // Confirm that the 'to' address is not ERC-721 transfer exempt.
+        expect(await f.contract.erc721TransferExempt(to.address)).to.equal(
+          false,
+        )
+
+        // Confirm that the 'from' address is ERC-721 transfer exempt.
+        expect(await f.contract.erc721TransferExempt(from.address)).to.equal(
+          true,
+        )
+
+        // Attempt to send 1 ERC-721.
+        await expect(
+          f.contract
+            .connect(from)
+            .transferFrom(from.address, to.address, tokenId),
+        ).to.be.revertedWithCustomError(
+          f.contract,
+          "SenderIsERC721TransferExempt",
+        )
+      })
+    })
+
+    context(
+      "Both sender and recipient are ERC-721 transfer exempt",
+      function () {
+        it("Reverts when transferring as ERC-721", async function () {
+          const f = await loadFixture(
+            deployMinimalERC404WithERC20sAndERC721sMinted,
+          )
+
+          const tokenId = 1n
+          const from = f.signers[0]
+          const to = f.signers[3]
+
+          await f.contract
+            .connect(f.signers[0])
+            .setERC721TransferExempt(to.address, true)
+
+          await f.contract
+            .connect(f.signers[0])
+            .setERC721TransferExempt(from.address, true)
+
+          // Confirm that the 'to' address is ERC-721 transfer exempt.
+          expect(await f.contract.erc721TransferExempt(to.address)).to.equal(
+            true,
+          )
+
+          // Confirm that the 'from' address is ERC-721 transfer exempt.
+          expect(await f.contract.erc721TransferExempt(from.address)).to.equal(
+            true,
+          )
+
+          // Attempt to send 1 ERC-721.
+          await expect(
+            f.contract
+              .connect(from)
+              .transferFrom(from.address, to.address, tokenId),
+          ).to.be.revertedWithCustomError(
+            f.contract,
+            "SenderIsERC721TransferExempt",
+          )
+        })
+      },
+    )
+
     context("Operator owns the token to be moved", function () {
       // This test case proves that the operator cannot use transferFrom to transfer a token they own if they provide the wrong 'from' address.
       it("Reverts when attempting to transfer a token that operator owns, but that 'from' does not own", async function () {
