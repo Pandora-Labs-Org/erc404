@@ -30,11 +30,11 @@ interface IERC404 is IERC165 {
   error InvalidSpender();
   error InvalidOperator();
   error UnsafeRecipient();
-  error NotWhitelisted();
+  error NotERC721TransferExempt();
   error Unauthorized();
   error InsufficientAllowance();
   error DecimalsTooLow();
-  error CannotRemoveFromWhitelist();
+  error CannotRemoveFromERC721TransferExempt();
   error PermitDeadlineExpired();
   error InvalidSigner();
   error InvalidApproval();
@@ -49,7 +49,7 @@ interface IERC404 is IERC165 {
   function balanceOf(address owner_) external view returns (uint256);
   function erc721BalanceOf(address owner_) external view returns (uint256);
   function erc20BalanceOf(address owner_) external view returns (uint256);
-  function whitelist(address account_) external view returns (bool);
+  function erc721TransferExempt(address account_) external view returns (bool);
   function isApprovedForAll(
     address owner_,
     address operator_

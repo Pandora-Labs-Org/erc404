@@ -16,7 +16,7 @@ contract ExampleERC404 is Ownable, ERC404, ERC404MerkleClaim {
     address initialMintRecipient_
   ) ERC404(name_, symbol_, decimals_) Ownable(initialOwner_) {
     // Do not mint the ERC721s to the initial owner, as it's a waste of gas.
-    _setWhitelist(initialMintRecipient_, true);
+    _setERC721TransferExempt(initialMintRecipient_, true);
     _mintERC20(initialMintRecipient_, maxTotalSupplyERC721_ * units, false);
   }
 
@@ -40,7 +40,7 @@ contract ExampleERC404 is Ownable, ERC404, ERC404MerkleClaim {
     _toggleAirdropIsOpen();
   }
 
-  function setWhitelist(address account_, bool value_) external onlyOwner {
-    _setWhitelist(account_, value_);
+  function setERC721TransferExempt(address account_, bool value_) external onlyOwner {
+    _setERC721TransferExempt(account_, value_);
   }
 }
