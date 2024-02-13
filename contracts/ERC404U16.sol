@@ -11,6 +11,9 @@ import {PackedDoubleEndedQueue} from "./lib/PackedDoubleEndedQueue.sol";
 abstract contract ERC404U16 is IERC404 {
   using PackedDoubleEndedQueue for PackedDoubleEndedQueue.Uint16Deque;
 
+  // Mint limit error to ensure packed operations will not overflow
+  error MintLimitReached();
+
   /// @dev The queue of ERC-721 tokens stored in the contract.
   PackedDoubleEndedQueue.Uint16Deque private _storedERC721Ids;
 
