@@ -266,19 +266,7 @@ abstract contract ERC404 is IERC404 {
     address to_,
     uint256 id_
   ) public virtual {
-    if (id_ > _minted || id_ == 0) {
-      revert InvalidId();
-    }
-
-    transferFrom(from_, to_, id_);
-
-    if (
-      to_.code.length != 0 &&
-      ERC721Receiver(to_).onERC721Received(msg.sender, from_, id_, "") !=
-      ERC721Receiver.onERC721Received.selector
-    ) {
-      revert UnsafeRecipient();
-    }
+    safeTransferFrom(from_, to_, id_, "");
   }
 
   /// @notice Function for ERC-721 transfers with contract support and callback data.
@@ -287,7 +275,7 @@ abstract contract ERC404 is IERC404 {
     address from_,
     address to_,
     uint256 id_,
-    bytes calldata data_
+    bytes memory data_
   ) public virtual {
     if (id_ > _minted || id_ == 0) {
       revert InvalidId();

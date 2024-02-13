@@ -187,6 +187,29 @@ describe("ERC404", function () {
     return f
   }
 
+  async function deployMockContractsForERC721Receiver() {
+    const mockValidERC721ReceiverFactory = await ethers.getContractFactory(
+      "MockValidERC721Receiver",
+    )
+
+    const mockValidERC721Receiver =
+      await mockValidERC721ReceiverFactory.deploy()
+    await mockValidERC721Receiver.waitForDeployment()
+
+    const mockInvalidERC721ReceiverFactory = await ethers.getContractFactory(
+      "MockInvalidERC721Receiver",
+    )
+
+    const mockInvalidERC721Receiver =
+      await mockInvalidERC721ReceiverFactory.deploy()
+    await mockInvalidERC721Receiver.waitForDeployment()
+
+    return {
+      mockValidERC721Receiver,
+      mockInvalidERC721Receiver,
+    }
+  }
+
   async function deployMinimalERC404ForHavingAlreadyGrantedApprovalForAllTests() {
     const f = await loadFixture(deployMinimalERC404WithERC20sAndERC721sMinted)
 
@@ -815,6 +838,94 @@ describe("ERC404", function () {
           fromBalancesBefore.erc721 - 4n,
         )
         expect(toBalancesAfter.erc721).to.equal(toBalancesBefore.erc721 + 4n)
+      })
+    })
+  })
+
+  describe("#safeTransferFrom", function () {
+    it('Calling without data parameter calls overloaded function with "" as data', async function () {
+      const f = await loadFixture(deployMinimalERC404WithERC20sAndERC721sMinted)
+
+      const tokenId = 1n
+
+      // Transfer 1 token from the sender to the receiver
+      await f.contract
+        .connect(f.signers[0])
+        .safeTransferFrom(f.signers[0].address, f.signers[1].address, tokenId)
+
+      // The receiver of the NFT should be the owner
+      expect(await f.contract.ownerOf(tokenId)).to.equal(f.signers[1].address)
+    })
+
+    it("Reverts when transferring token 0", async function () {
+      const f = await loadFixture(deployMinimalERC404WithERC20sAndERC721sMinted)
+
+      await expect(
+        f.contract
+          .connect(f.signers[0])
+          .safeTransferFrom(f.signers[0].address, f.signers[1].address, 0n),
+      ).to.be.revertedWithCustomError(f.contract, "InvalidId")
+    })
+
+    it("Reverts when transferring a token id above the minted range", async function () {
+      const f = await loadFixture(deployMinimalERC404WithERC20sAndERC721sMinted)
+
+      const tokenId = (await f.contract.erc721TotalSupply()) + 1n
+
+      await expect(
+        f.contract
+          .connect(f.signers[0])
+          .safeTransferFrom(
+            f.signers[0].address,
+            f.signers[1].address,
+            tokenId,
+          ),
+      ).to.be.revertedWithCustomError(f.contract, "InvalidId")
+    })
+
+    context("Recipient is a contract", function () {
+      context("Recipient is a valid ERC721Receiver", function () {
+        it("Successfully transfers a valid ERC-721", async function () {
+          const f = await loadFixture(
+            deployMinimalERC404WithERC20sAndERC721sMinted,
+          )
+          const f2 = await loadFixture(deployMockContractsForERC721Receiver)
+
+          const tokenId = 1n
+
+          // Transfer 1 token from the sender to the receiver
+          await expect(
+            f.contract
+              .connect(f.signers[0])
+              .safeTransferFrom(
+                f.signers[0].address,
+                await f2.mockValidERC721Receiver.getAddress(),
+                tokenId,
+              ),
+          ).to.emit(f.contract, "ERC721Transfer")
+        })
+      })
+
+      context("Recipient is not a valid ERC721Receiver", function () {
+        it("Successfully transfers a valid ERC-721", async function () {
+          const f = await loadFixture(
+            deployMinimalERC404WithERC20sAndERC721sMinted,
+          )
+          const f2 = await loadFixture(deployMockContractsForERC721Receiver)
+
+          const tokenId = 1n
+
+          // Transfer 1 token from the sender to the receiver
+          await expect(
+            f.contract
+              .connect(f.signers[0])
+              .safeTransferFrom(
+                f.signers[0].address,
+                await f2.mockInvalidERC721Receiver.getAddress(),
+                tokenId,
+              ),
+          ).to.be.revertedWithCustomError(f.contract, "UnsafeRecipient")
+        })
       })
     })
   })
