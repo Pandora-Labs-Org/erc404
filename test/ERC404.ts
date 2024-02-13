@@ -819,6 +819,26 @@ describe("ERC404", function () {
     })
   })
 
+  describe("#safeTransferFrom", function () {
+    it('Calling without data parameter calls overloaded function with "" as data', async function () {
+      const f = await loadFixture(deployMinimalERC404WithERC20sAndERC721sMinted)
+
+      const tokenId = 1n
+
+      // Transfer 1 token from the sender to the receiver
+      await f.contract
+        .connect(f.signers[0])
+        .safeTransferFrom(f.signers[0].address, f.signers[1].address, tokenId)
+
+      // The receiver of the NFT should be the owner
+      expect(await f.contract.ownerOf(tokenId)).to.equal(f.signers[1].address)
+    })
+
+    it("Reverts when transferring token 0", async function () {})
+
+    it("Reverts when transferring to 0x0", async function () {})
+  })
+
   describe("#transferFrom", function () {
     it("Doesn't allow anyone to transfer from 0x0", async function () {
       const f = await loadFixture(deployExampleERC404)
