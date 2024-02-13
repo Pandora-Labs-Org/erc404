@@ -41,7 +41,7 @@ async function runTests(contract: ethers.Contract) {
   console.log("###########################################")
 
   message(
-    "The initial owner is whitelisted so these are being minted for the first time here:",
+    "The initial owner is exempt so these are being minted for the first time during these transfers:",
   )
   await transfer(contract, signers[0], signers[1], 1n * 10n ** 18n)
 
@@ -49,7 +49,9 @@ async function runTests(contract: ethers.Contract) {
 
   await transfer(contract, signers[0], signers[1], 100n * 10n ** 18n)
 
-  message("Subsequent transfers will not mint new tokens:")
+  message(
+    "Subsequent transfers from a non-exempt address to another non-exempt address:",
+  )
 
   await transfer(contract, signers[1], signers[2], 1n * 10n ** 18n)
 
@@ -58,7 +60,7 @@ async function runTests(contract: ethers.Contract) {
   await transfer(contract, signers[1], signers[2], 100n * 10n ** 18n)
 
   message(
-    "Transferring back to the original owner who is whitelisted will burn the NFTs:",
+    "Transferring back to the original owner who is exempt will burn the NFTs:",
   )
 
   await transfer(contract, signers[2], signers[0], 1n * 10n ** 18n)
@@ -94,6 +96,11 @@ async function transfer(
   const gasUsed = BigInt(receipt.gasUsed)
   console.log("Gas used:", gasUsed.toLocaleString(), "gas")
 
+  const wholeTokens = value / 10n ** 18n
+
+  const gasUsedPerToken = gasUsed / wholeTokens
+  console.log("Effective gas used per token:", gasUsedPerToken.toLocaleString())
+
   // Print gas used in ETH
   const gasUsedEth = gasUsed * gasPrice
   console.log(
@@ -103,12 +110,15 @@ async function transfer(
     `(${weiToDollars(gasUsedEth).format()} USD)`,
   )
 
-  const effectiveGasCostPerToken = Number(gasUsedEth) / Number(value)
+  const effectiveGasCostPerToken = ethers.parseUnits(
+    (gasUsedEth / wholeTokens).toString(),
+    "wei",
+  )
   console.log(
     "Effective gas cost per token:",
-    effectiveGasCostPerToken,
+    ethers.formatEther(effectiveGasCostPerToken),
     "ETH",
-    `(${etherPrice.multiply(effectiveGasCostPerToken).format()} USD)`,
+    `(${etherPrice.multiply(Number(effectiveGasCostPerToken) / 10 ** 18).format()} USD)`,
   )
 }
 
