@@ -20,22 +20,7 @@ library PackedDoubleEndedQueue {
   uint128 constant SLOT_MASK = (1 << 64) - 1;
   uint128 constant INDEX_MASK = SLOT_MASK << 64;
 
-  uint256 constant SLOT_0_MASK = (1 << 16) - 1;
-  uint256 constant SLOT_1_MASK = SLOT_0_MASK << 16;
-  uint256 constant SLOT_2_MASK = SLOT_0_MASK << (16 * 2);
-  uint256 constant SLOT_3_MASK = SLOT_0_MASK << (16 * 3);
-  uint256 constant SLOT_4_MASK = SLOT_0_MASK << (16 * 4);
-  uint256 constant SLOT_5_MASK = SLOT_0_MASK << (16 * 5);
-  uint256 constant SLOT_6_MASK = SLOT_0_MASK << (16 * 6);
-  uint256 constant SLOT_7_MASK = SLOT_0_MASK << (16 * 7);
-  uint256 constant SLOT_8_MASK = SLOT_0_MASK << (16 * 8);
-  uint256 constant SLOT_9_MASK = SLOT_0_MASK << (16 * 9);
-  uint256 constant SLOT_10_MASK = SLOT_0_MASK << (16 * 10);
-  uint256 constant SLOT_11_MASK = SLOT_0_MASK << (16 * 11);
-  uint256 constant SLOT_12_MASK = SLOT_0_MASK << (16 * 12);
-  uint256 constant SLOT_13_MASK = SLOT_0_MASK << (16 * 13);
-  uint256 constant SLOT_14_MASK = SLOT_0_MASK << (16 * 14);
-  uint256 constant SLOT_15_MASK = SLOT_0_MASK << (16 * 15);
+  uint256 constant SLOT_DATA_MASK = (1 << 16) - 1;
 
   /**
    * @dev An operation (e.g. {front}) couldn't be completed due to the queue being empty.
@@ -175,40 +160,6 @@ library PackedDoubleEndedQueue {
   }
 
   function _getSlotMask(uint64 slot_) private pure returns (uint256) {
-    if (slot_ == 0) {
-        return SLOT_0_MASK;
-    } else if (slot_ == 1) {
-        return SLOT_1_MASK;
-    } else if (slot_ == 2) {
-        return SLOT_2_MASK;
-    } else if (slot_ == 3) {
-        return SLOT_3_MASK;
-    } else if (slot_ == 4) {
-        return SLOT_4_MASK;
-    } else if (slot_ == 5) {
-        return SLOT_5_MASK;
-    } else if (slot_ == 6) {
-        return SLOT_6_MASK;
-    } else if (slot_ == 7) {
-        return SLOT_7_MASK;
-    } else if (slot_ == 8) {
-        return SLOT_8_MASK;
-    } else if (slot_ == 9) {
-        return SLOT_9_MASK;
-    } else if (slot_ == 10) {
-        return SLOT_10_MASK;
-    } else if (slot_ == 11) {
-        return SLOT_11_MASK;
-    } else if (slot_ == 12) {
-        return SLOT_12_MASK;
-    } else if (slot_ == 13) {
-        return SLOT_13_MASK;
-    } else if (slot_ == 14) {
-        return SLOT_14_MASK;
-    } else if (slot_ == 15) {
-        return SLOT_15_MASK;
-    } else {
-        revert InvalidSlot();
-    }
+    return SLOT_DATA_MASK << (slot_ * 16);
   }
 }

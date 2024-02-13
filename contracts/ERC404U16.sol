@@ -58,7 +58,7 @@ abstract contract ERC404U16 is IERC404 {
   mapping(uint256 => uint256) internal _ownedData;
 
   /// @dev Array of owned ids in ERC-721 representation
-  mapping(address => uint256[]) internal _owned;
+  mapping(address => uint16[]) internal _owned;
 
   /// @dev Addresses that are exempt from ERC-721 transfer, typically for gas savings (pairs, routers, etc)
   mapping(address => bool) public erc721TransferExempt;
