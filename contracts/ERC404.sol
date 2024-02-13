@@ -639,7 +639,7 @@ abstract contract ERC404 is IERC404 {
       id = _storedERC721Ids.popBack();
     } else {
       // Otherwise, mint a new token, should not be able to go over the total fractional supply.
-      minted++;
+      ++minted;
       id = minted;
     }
 
