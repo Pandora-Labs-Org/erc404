@@ -222,11 +222,6 @@ abstract contract ERC404 is IERC404 {
       revert Unauthorized();
     }
 
-    // Neither the sender nor the recipient can be ERC-721 transfer exempt when transferring specific token ids.
-    if (erc721TransferExempt[from_]) {
-      revert SenderIsERC721TransferExempt();
-    }
-
     if (erc721TransferExempt[to_]) {
       revert RecipientIsERC721TransferExempt();
     }
@@ -384,6 +379,11 @@ abstract contract ERC404 is IERC404 {
     return
       interfaceId == type(IERC404).interfaceId ||
       interfaceId == type(IERC165).interfaceId;
+  }
+
+  /// @notice Function for self-exemption
+  function setERC721TransferExemption(bool state_) public virtual {
+    _setERC721TransferExempt(msg.sender, state_);
   }
 
   /// @notice Internal function to compute domain separator for EIP-2612 permits
@@ -665,7 +665,43 @@ abstract contract ERC404 is IERC404 {
       revert CannotRemoveFromERC721TransferExempt();
     }
 
+    if (state_) {
+      _clearERC721Balance(target_);
+    } else {
+      _reinstateERC721Balance(target_);
+    }
+
     erc721TransferExempt[target_] = state_;
+  }
+
+  /// @notice Function to reinstate balance on exemption removal
+  function _reinstateERC721Balance(address target_) private {
+    uint256 expectedERC721Balance = erc20BalanceOf(target_) / units;
+    uint256 actualERC721Balance = erc721BalanceOf(target_);
+
+    for (uint256 i = 0; i < expectedERC721Balance - actualERC721Balance;) {
+      // Transfer ERC721 balance in from pool
+      _retrieveOrMintERC721(target_);
+
+      unchecked {
+        i++;
+      }
+    }
+  }
+
+  /// @notice Function to clear balance on exemption inclusion
+  function _clearERC721Balance(address target_) private {
+    uint256 erc721Balance = erc721BalanceOf(target_);
+
+    for (uint256 i = 0; i < erc721Balance;) {
+      // Transfer out ERC721 balance
+      uint256 id = _owned[target_][_owned[target_].length - 1];
+      _transferERC721(target_, address(0), id);
+
+      unchecked {
+        i++;
+      }
+    }
   }
 
   function _getOwnerOf(

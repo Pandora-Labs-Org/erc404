@@ -1097,7 +1097,7 @@ describe("ERC404", function () {
             .transferFrom(from.address, to.address, tokenId),
         ).to.be.revertedWithCustomError(
           f.contract,
-          "SenderIsERC721TransferExempt",
+          "Unauthorized",
         )
       })
     })
@@ -1175,7 +1175,7 @@ describe("ERC404", function () {
               .transferFrom(from.address, to.address, tokenId),
           ).to.be.revertedWithCustomError(
             f.contract,
-            "SenderIsERC721TransferExempt",
+            "Unauthorized",
           )
         })
       },
