@@ -149,9 +149,6 @@ abstract contract ERC404 is IERC404 {
   /// @dev This function assumes the operator is attempting to approve an ERC-721
   ///      if valueOrId is less than the minted count. Unlike setApprovalForAll,
   ///      spender_ must be allowed to be 0x0 so that approval can be revoked.
-  ///
-  ///      Providing type(uint256).max for approval value results in an
-  ///      unlimited approval that is not deducted from on transfers.
   function approve(
     address spender_,
     uint256 valueOrId_
@@ -185,6 +182,8 @@ abstract contract ERC404 is IERC404 {
     emit ERC721Approval(erc721Owner, spender_, id_);
   }
 
+  /// @dev Providing type(uint256).max for approval value results in an
+  ///      unlimited approval that is not deducted from on transfers.
   function erc20Approve(
     address spender_,
     uint256 value_
