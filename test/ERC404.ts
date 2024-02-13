@@ -252,7 +252,7 @@ describe("ERC404", function () {
     // console.log("balancesBeforeSigner0", balancesBeforeSigner0)
     // console.log("balancesBeforeSigner1", balancesBeforeSigner1)
 
-    // Add the owner to the whitelist
+    // Add the owner to the exemption list
     await f.contract
       .connect(f.signers[0])
       .setERC721TransferExempt(f.signers[0].address, true)
@@ -276,7 +276,7 @@ describe("ERC404", function () {
 
     const targetAddress = f.randomAddresses[0]
 
-    // Transfer some tokens to a non-whitelisted wallet to generate the NFTs.
+    // Transfer some tokens to a non-exempted wallet to generate the NFTs.
     await f.contract
       .connect(f.signers[0])
       .transfer(targetAddress, 5n * f.deployConfig.units)
@@ -317,7 +317,7 @@ describe("ERC404", function () {
           f.deployConfig.initialMintRecipient.address,
         ),
       ).to.equal(f.deployConfig.maxTotalSupplyERC20)
-      // Expect 0 ERC721 tokens to be minted to the initial recipient, since 1) the user is on the whitelist and 2) the supply is minted using _mintERC20 with mintCorrespondingERC721s_ set to false.
+      // Expect 0 ERC721 tokens to be minted to the initial recipient, since 1) the user is on the exemption list and 2) the supply is minted using _mintERC20 with mintCorrespondingERC721s_ set to false.
       expect(
         await f.contract.erc721BalanceOf(
           f.deployConfig.initialMintRecipient.address,
@@ -333,7 +333,7 @@ describe("ERC404", function () {
       )
     })
 
-    it("Initializes the whitelist with the initial mint recipient", async function () {
+    it("Initializes the exemption list with the initial mint recipient", async function () {
       const f = await loadFixture(deployExampleERC404)
 
       expect(
@@ -395,7 +395,7 @@ describe("ERC404", function () {
           deployExampleERC404WithSomeTokensTransferredToRandomAddress,
         )
 
-        // Transferred 5 full tokens from a whitelisted address to the target address (not whitelisted), which minted the first 5 NFTs.
+        // Transferred 5 full tokens from a exempted address to the target address (not exempted), which minted the first 5 NFTs.
 
         // Expect the owner of the token to be the recipient
         for (let i = 1n; i <= 5n; i++) {
@@ -458,7 +458,7 @@ describe("ERC404", function () {
 
       // Expect the contract's bank to be empty
       expect(await f.contract.balanceOf(f.contractAddress)).to.equal(0n)
-      expect(await f.contract.erc721TokensBankedInQueue()).to.equal(0n)
+      expect(await f.contract.getERC721QueueLength()).to.equal(0n)
 
       const nftQty = 10n
       const value = nftQty * f.deployConfig.units
@@ -497,7 +497,7 @@ describe("ERC404", function () {
 
       // Expect the contract's bank to be empty
       expect(await f.contract.balanceOf(f.contractAddress)).to.equal(0n)
-      expect(await f.contract.erc721TokensBankedInQueue()).to.equal(0n)
+      expect(await f.contract.getERC721QueueLength()).to.equal(0n)
 
       const nftQty = 10n
       const value = nftQty * f.deployConfig.units
@@ -510,7 +510,7 @@ describe("ERC404", function () {
 
       // Expect the contract's bank to be empty
       expect(await f.contract.balanceOf(f.contractAddress)).to.equal(0n)
-      expect(await f.contract.erc721TokensBankedInQueue()).to.equal(0n)
+      expect(await f.contract.getERC721QueueLength()).to.equal(0n)
 
       // Move a fraction of a token to another address to break apart a full NFT.
 
@@ -549,7 +549,7 @@ describe("ERC404", function () {
       // The contract's balance is still 0
       expect(await f.contract.balanceOf(f.contractAddress)).to.equal(0n)
       // The contract's bank to contain 1 NFT
-      expect(await f.contract.erc721TokensBankedInQueue()).to.equal(1n)
+      expect(await f.contract.getERC721QueueLength()).to.equal(1n)
     })
 
     it("Retrieves ERC721s from the contract's bank when the contract's bank holds NFTs and the user regains a full token", async function () {
@@ -587,7 +587,7 @@ describe("ERC404", function () {
       // The contract's NFT balance should be 0
       expect(await f.contract.erc721BalanceOf(f.contractAddress)).to.equal(0n)
       // The contract's bank should contain 1 NFTs
-      expect(await f.contract.erc721TokensBankedInQueue()).to.equal(1n)
+      expect(await f.contract.getERC721QueueLength()).to.equal(1n)
 
       // Transfer the fractional portion needed to regain a full token back to the original sender
       const regainFullTokenTx = await f.contract
@@ -621,7 +621,7 @@ describe("ERC404", function () {
       // The contract's NFT balance should be 0
       expect(await f.contract.erc721BalanceOf(f.contractAddress)).to.equal(0n)
       // The contract's bank should contain 0 NFTs
-      expect(await f.contract.erc721TokensBankedInQueue()).to.equal(0n)
+      expect(await f.contract.getERC721QueueLength()).to.equal(0n)
     })
   })
 
@@ -1438,15 +1438,41 @@ describe("ERC404", function () {
     // TODO more tests needed here, including testing that approvals work.
   })
 
-  describe("#_setERC721TransferExempt", function () {
-    it("Allows the owner to add and remove addresses from the whitelist", async function () {
+  describe("#setERC721TransferExempt", function () {
+    it("Allows the caller to exempt themselves", async function () {
       const f = await loadFixture(deployExampleERC404)
 
       expect(
         await f.contract.erc721TransferExempt(f.randomAddresses[1]),
       ).to.equal(false)
 
-      // Add a random address to the whitelist
+      // Add a random address to the exemption list
+      await f.contract
+        .connect(f.signers[1])
+        .setSelfERC721TransferExempt(true)
+      expect(
+        await f.contract.erc721TransferExempt(f.signers[1].address),
+      ).to.equal(true)
+
+      // Remove the random address from the exemption list
+      await f.contract
+        .connect(f.signers[1])
+        .setSelfERC721TransferExempt(false)
+      expect(
+        await f.contract.erc721TransferExempt(f.signers[1].address),
+      ).to.equal(false)
+    })
+  })
+
+  describe("#_setERC721TransferExempt", function () {
+    it("Allows the owner to add and remove addresses from the exemption list", async function () {
+      const f = await loadFixture(deployExampleERC404)
+
+      expect(
+        await f.contract.erc721TransferExempt(f.randomAddresses[1]),
+      ).to.equal(false)
+
+      // Add a random address to the exemption list
       await f.contract
         .connect(f.signers[0])
         .setERC721TransferExempt(f.randomAddresses[1], true)
@@ -1454,7 +1480,7 @@ describe("ERC404", function () {
         await f.contract.erc721TransferExempt(f.randomAddresses[1]),
       ).to.equal(true)
 
-      // Remove the random address from the whitelist
+      // Remove the random address from the exemption list
       await f.contract
         .connect(f.signers[0])
         .setERC721TransferExempt(f.randomAddresses[1], false)
@@ -1463,32 +1489,38 @@ describe("ERC404", function () {
       ).to.equal(false)
     })
 
-    it("An address cannot be removed from the whitelist while it has an ERC-20 balance >= 1 full token.", async function () {
+    it("Rebalances ERC721 tokens held by the target", async function () {
       const f = await loadFixture(deployExampleERC404)
 
       const targetAddress = f.randomAddresses[0]
 
-      // Transfer 1 full NFT worth of tokens to that address.
+      // Transfer 3.5 full NFT worth of tokens to that address.
       await f.contract
         .connect(f.signers[0])
-        .transfer(targetAddress, f.deployConfig.units)
+        .transfer(targetAddress, 35n * f.deployConfig.units / 10n)
 
-      expect(await f.contract.erc721BalanceOf(targetAddress)).to.equal(1n)
+      expect(await f.contract.erc721BalanceOf(targetAddress)).to.equal(3n)
 
-      // Add that address to the whitelist.
+      // Add that address to the exemption list.
       await f.contract
         .connect(f.signers[0])
         .setERC721TransferExempt(targetAddress, true)
 
-      // Attempt to remove the random address from the whitelist.
-      await expect(
-        f.contract
-          .connect(f.signers[0])
-          .setERC721TransferExempt(targetAddress, false),
-      ).to.be.revertedWithCustomError(
-        f.contract,
-        "CannotRemoveFromERC721TransferExempt",
-      )
+      // Target ERC721 balance should be adjusted
+      expect(await f.contract.erc721BalanceOf(targetAddress)).to.equal(0n)
+      expect(await f.contract.getERC721QueueLength()).to.equal(3n)
+      expect(await f.contract.erc20BalanceOf(targetAddress)).to.equal(35n * f.deployConfig.units / 10n)
+      expect((await f.contract.getERC721TokensInQueue(0, 3))[0]).to.equal(1);
+      
+      // Remove that address from the exemption list.
+      await f.contract
+        .connect(f.signers[0])
+        .setERC721TransferExempt(targetAddress, false)
+
+      // Target ERC721 balance should be adjusted
+      expect(await f.contract.erc721BalanceOf(targetAddress)).to.equal(3n)
+      expect(await f.contract.getERC721QueueLength()).to.equal(0n)
+      expect(await f.contract.erc20BalanceOf(targetAddress)).to.equal(35n * f.deployConfig.units / 10n)
     })
   })
 
@@ -2101,7 +2133,7 @@ describe("ERC404", function () {
         expect(await f.contract.ownerOf(i)).to.equal(f.signers[1].address)
       }
 
-      // Transfer 5 full tokens as ERC-20 from the mint recipient to another address (not whitelisted) (tokens 95-100)
+      // Transfer 5 full tokens as ERC-20 from the mint recipient to another address (not exempted) (tokens 95-100)
       await f.contract
         .connect(f.signers[1])
         .transfer(f.signers[2].address, 5n * f.deployConfig.units)
@@ -2337,7 +2369,7 @@ describe("ERC404", function () {
           expect(await f.contract.erc721BalanceOf(f.contractAddress)).to.equal(
             0n,
           )
-          expect(await f.contract.erc721TokensBankedInQueue()).to.equal(0n)
+          expect(await f.contract.getERC721QueueLength()).to.equal(0n)
 
           expect(await f.contract.erc721TotalSupply()).to.equal(0n)
 
@@ -2360,7 +2392,7 @@ describe("ERC404", function () {
           expect(await f.contract.erc721BalanceOf(f.contractAddress)).to.equal(
             0n,
           )
-          expect(await f.contract.erc721TokensBankedInQueue()).to.equal(0n)
+          expect(await f.contract.getERC721QueueLength()).to.equal(0n)
 
           expect(await f.contract.erc721TotalSupply()).to.equal(0n)
 
@@ -2384,7 +2416,7 @@ describe("ERC404", function () {
           )
 
           // Expect the contract to have 0 ERC-721 token in the queue
-          expect(await f.contract.erc721TokensBankedInQueue()).to.equal(0n)
+          expect(await f.contract.getERC721QueueLength()).to.equal(0n)
 
           // Expect the contract to own token 1
           expect(await f.contract.ownerOf(1n)).to.equal(f.contractAddress)

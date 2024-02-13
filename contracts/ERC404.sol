@@ -121,8 +121,25 @@ abstract contract ERC404 is IERC404 {
     return minted;
   }
 
-  function erc721TokensBankedInQueue() public view virtual returns (uint256) {
+  function getERC721QueueLength() public view virtual returns (uint256) {
     return _storedERC721Ids.length();
+  }
+
+  function getERC721TokensInQueue(
+    uint256 start_, 
+    uint256 count_
+  ) public view virtual returns (uint256[] memory) {
+    uint256[] memory tokensInQueue = new uint256[](count_);
+
+    for (uint256 i = start_; i < start_ + count_;) {
+      tokensInQueue[i - start_] = _storedERC721Ids.at(i);
+
+      unchecked {
+        ++i;
+      }
+    }
+
+    return tokensInQueue;
   }
 
   /// @notice tokenURI must be implemented by child contract
@@ -401,7 +418,7 @@ abstract contract ERC404 is IERC404 {
   }
 
   /// @notice Function for self-exemption
-  function setERC721TransferExempt(bool state_) public virtual {
+  function setSelfERC721TransferExempt(bool state_) public virtual {
     _setERC721TransferExempt(msg.sender, state_);
   }
 
@@ -677,13 +694,9 @@ abstract contract ERC404 is IERC404 {
 
   /// @notice Initialization function to set pairs / etc, saving gas by avoiding mint / burn on unnecessary targets
   function _setERC721TransferExempt(address target_, bool state_) internal virtual {
-    // If the target has at least 1 full ERC-20 token, they should not be removed from the exempt list
-    // because if they were and then they attempted to transfer, it would revert as they would not
-    // necessarily have ehough ERC-721s to bank.
-    if (erc20BalanceOf(target_) >= units && !state_) {
-      revert CannotRemoveFromERC721TransferExempt();
-    }
-
+    // Adjust the ERC721 balances of the target to respect exemption rules.
+    // Despite this logic, it is still recommended practice to exempt prior to the target
+    // having an active balance.
     if (state_) {
       _clearERC721Balance(target_);
     } else {
@@ -713,8 +726,7 @@ abstract contract ERC404 is IERC404 {
 
     for (uint256 i = 0; i < erc721Balance;) {
       // Transfer out ERC721 balance
-      uint256 id = _owned[target_][_owned[target_].length - 1];
-      _transferERC721(target_, address(0), id);
+      _withdrawAndStoreERC721(target_);
       unchecked {
         ++i;
       }
