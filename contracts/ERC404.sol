@@ -260,11 +260,16 @@ abstract contract ERC404 is IERC404 {
   }
 
   /// @notice Function for ERC-721 transfers with contract support.
+  /// This function only supports moving valid ERC-721 ids, as it does not exist on the ERC-20 spec and will revert otherwise.
   function safeTransferFrom(
     address from_,
     address to_,
     uint256 id_
   ) public virtual {
+    if (id_ > _minted || id_ == 0) {
+      revert InvalidId();
+    }
+
     transferFrom(from_, to_, id_);
 
     if (
@@ -277,12 +282,17 @@ abstract contract ERC404 is IERC404 {
   }
 
   /// @notice Function for ERC-721 transfers with contract support and callback data.
+  /// This function only supports moving valid ERC-721 ids, as it does not exist on the ERC-20 spec and will revert otherwise.
   function safeTransferFrom(
     address from_,
     address to_,
     uint256 id_,
     bytes calldata data_
   ) public virtual {
+    if (id_ > _minted || id_ == 0) {
+      revert InvalidId();
+    }
+
     transferFrom(from_, to_, id_);
 
     if (
@@ -436,7 +446,9 @@ abstract contract ERC404 is IERC404 {
       _owned[from_].pop();
     }
 
+    // Check if this is a burn.
     if (to_ != address(0)) {
+      // If not a burn, update the owner of the token to the new owner.
       // Update owner of the token to the new owner.
       _setOwnerOf(id_, to_);
       // Push token onto the new owner's stack.
@@ -444,6 +456,7 @@ abstract contract ERC404 is IERC404 {
       // Update index for new owner's stack.
       _setOwnedIndex(id_, _owned[to_].length - 1);
     } else {
+      // If this is a burn, reset the owner of the token to 0x0 by deleting the token from _ownedData.
       delete _ownedData[id_];
     }
 
@@ -553,6 +566,7 @@ abstract contract ERC404 is IERC404 {
   /// @notice Internal function for ERC20 minting
   /// @dev This function will allow minting of new ERC20s.
   ///      If mintCorrespondingERC721s_ is true, and the recipient is not ERC-721 exempt, it will also mint the corresponding ERC721s.
+  /// Handles ERC-721 exemptions.
   function _mintERC20(
     address to_,
     uint256 value_,
@@ -623,7 +637,7 @@ abstract contract ERC404 is IERC404 {
     // Retrieve the latest token added to the owner's stack (LIFO).
     uint256 id = _owned[from_][_owned[from_].length - 1];
 
-    // Transfer the token to the contract.
+    // Transfer to 0x0.
     // Does not handle ERC-721 exemptions.
     _transferERC721(from_, address(0), id);
 
@@ -639,6 +653,7 @@ abstract contract ERC404 is IERC404 {
     if (erc20BalanceOf(target_) >= units && !state_) {
       revert CannotRemoveFromERC721TransferExempt();
     }
+
     erc721TransferExempt[target_] = state_;
   }
 

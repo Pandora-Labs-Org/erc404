@@ -879,7 +879,7 @@ describe("ERC404", function () {
         // 'from' has to grant themselves sufficient allowance to spend their own tokens using transferFrom
         await f.contract.connect(from).approve(from.address, value)
 
-        // Attempt to send 1 ERC-20.
+        // Attempt to send as ERC-20.
         return expect(
           f.contract
             .connect(from)
@@ -948,7 +948,7 @@ describe("ERC404", function () {
         // 'from' has to grant themselves sufficient allowance to spend their own tokens using transferFrom
         await f.contract.connect(from).approve(from.address, value)
 
-        // Attempt to send 1 ERC-20.
+        // Attempt to send as ERC-20.
         return expect(
           f.contract
             .connect(from)
@@ -1022,7 +1022,7 @@ describe("ERC404", function () {
           // 'from' has to grant themselves sufficient allowance to spend their own tokens using transferFrom
           await f.contract.connect(from).approve(from.address, value)
 
-          // Attempt to send 1 ERC-20.
+          // Attempt to send as ERC-20.
           return expect(
             f.contract
               .connect(from)
@@ -1939,7 +1939,7 @@ describe("ERC404", function () {
   })
 
   describe("E2E tests", function () {
-    it("Minting out the full supply, making ERC-20 and ERC-721 transfers, banking and retrieving tokens, and setting and removing whitelist addresses", async function () {
+    it("Minting out the full supply, making ERC-20 and ERC-721 transfers, banking and retrieving tokens", async function () {
       const f = await loadFixture(deployMinimalERC404)
 
       // Initial minting. Will mint ERC-20 and ERC-721 tokens.
@@ -2199,6 +2199,10 @@ describe("ERC404", function () {
         f.contract,
         "NotFound",
       )
+    })
+
+    it("Various weird scenarios where addresses are added and removed from the ERC-721 transfer exempt list", async function () {
+      // TODO
     })
   })
 
