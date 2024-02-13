@@ -275,7 +275,7 @@ abstract contract ERC404 is IERC404 {
     address from_,
     address to_,
     uint256 id_,
-    bytes calldata data_
+    bytes memory data_
   ) public virtual {
     if (id_ > _minted || id_ == 0) {
       revert InvalidId();
