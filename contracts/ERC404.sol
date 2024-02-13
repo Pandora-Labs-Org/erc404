@@ -29,7 +29,7 @@ abstract contract ERC404 is IERC404 {
 
   /// @dev Current mint counter which also represents the highest
   ///      minted id, monotonically increasing to ensure accurate ownership
-  uint256 internal _minted;
+  uint256 public minted;
 
   /// @dev Initial chain id for EIP-2612 support
   uint256 internal immutable INITIAL_CHAIN_ID;
@@ -90,7 +90,7 @@ abstract contract ERC404 is IERC404 {
     erc721Owner = _getOwnerOf(id_);
 
     // If the id_ is beyond the range of minted tokens, is 0, or the token is not owned by anyone, revert.
-    if (id_ > _minted || id_ == 0 || erc721Owner == address(0)) {
+    if (id_ > minted || id_ == 0 || erc721Owner == address(0)) {
       revert NotFound();
     }
   }
@@ -118,7 +118,7 @@ abstract contract ERC404 is IERC404 {
   }
 
   function erc721TotalSupply() public view virtual returns (uint256) {
-    return _minted;
+    return minted;
   }
 
   function erc721TokensBankedInQueue() public view virtual returns (uint256) {
@@ -138,7 +138,7 @@ abstract contract ERC404 is IERC404 {
   ) public virtual returns (bool) {
     // The ERC-721 tokens are 1-indexed, so 0 is not a valid id and indicates that
     // operator is attempting to set the ERC-20 allowance to 0.
-    if (valueOrId_ <= _minted && valueOrId_ > 0) {
+    if (valueOrId_ <= minted && valueOrId_ > 0) {
       // Intention is to approve as ERC-721 token (id).
       uint256 id = valueOrId_;
       address erc721Owner = _getOwnerOf(id);
@@ -186,6 +186,19 @@ abstract contract ERC404 is IERC404 {
     address to_,
     uint256 valueOrId_
   ) public virtual returns (bool) {
+    if (valueOrId_ <= minted && valueOrId_ > 0) {
+      erc721TransferFrom(from_, to_, valueOrId_);
+    } else {
+      // Intention is to transfer as ERC-20 token (value).
+      return erc20TransferFrom(from_, to_, valueOrId_);
+    }
+
+    return true;
+  }
+
+  /// @notice Function for ERC-721 transfers from.
+  /// @dev This function is recommended for ERC721 transfers
+  function erc721TransferFrom(address from_, address to_, uint256 id) public virtual {
     // Prevent transferring tokens from 0x0.
     if (from_ == address(0)) {
       revert InvalidSender();
@@ -196,52 +209,58 @@ abstract contract ERC404 is IERC404 {
       revert InvalidRecipient();
     }
 
-    if (valueOrId_ <= _minted) {
-      // Intention is to transfer as ERC-721 token (id).
-      uint256 id = valueOrId_;
-
-      if (from_ != _getOwnerOf(id)) {
-        revert Unauthorized();
-      }
-
-      // Check that the operator is either the sender or approved for the transfer.
-      if (
-        msg.sender != from_ &&
-        !isApprovedForAll[from_][msg.sender] &&
-        msg.sender != getApproved[id]
-      ) {
-        revert Unauthorized();
-      }
-
-      // Neither the sender nor the recipient can be ERC-721 transfer exempt when transferring specific token ids.
-      if (erc721TransferExempt[from_]) {
-        revert SenderIsERC721TransferExempt();
-      }
-
-      if (erc721TransferExempt[to_]) {
-        revert RecipientIsERC721TransferExempt();
-      }
-
-      // Transfer 1 * units ERC-20 and 1 ERC-721 token.
-      // ERC-721 transfer exemptions handled above. Can't make it to this point if either is transfer exempt.
-      _transferERC20(from_, to_, units);
-      _transferERC721(from_, to_, id);
-    } else {
-      // Intention is to transfer as ERC-20 token (value).
-      uint256 value = valueOrId_;
-      uint256 allowed = allowance[from_][msg.sender];
-
-      // Check that the operator has sufficient allowance.
-      if (allowed != type(uint256).max) {
-        allowance[from_][msg.sender] = allowed - value;
-      }
-
-      // Transferring ERC-20s directly requires the _transfer function.
-      // Handles ERC-721 exemptions internally.
-      _transferERC20WithERC721(from_, to_, value);
+    if (from_ != _getOwnerOf(id)) {
+      revert Unauthorized();
     }
 
-    return true;
+    // Check that the operator is either the sender or approved for the transfer.
+    if (
+      msg.sender != from_ &&
+      !isApprovedForAll[from_][msg.sender] &&
+      msg.sender != getApproved[id]
+    ) {
+      revert Unauthorized();
+    }
+
+    // Neither the sender nor the recipient can be ERC-721 transfer exempt when transferring specific token ids.
+    if (erc721TransferExempt[from_]) {
+      revert SenderIsERC721TransferExempt();
+    }
+
+    if (erc721TransferExempt[to_]) {
+      revert RecipientIsERC721TransferExempt();
+    }
+
+    // Transfer 1 * units ERC-20 and 1 ERC-721 token.
+    // ERC-721 transfer exemptions handled above. Can't make it to this point if either is transfer exempt.
+    _transferERC20(from_, to_, units);
+    _transferERC721(from_, to_, id);
+  }
+
+  /// @notice Function for ERC-20 transfers from.
+  /// @dev This function is recommended for ERC20 transfers
+  function erc20TransferFrom(address from_, address to_, uint256 value_) public virtual returns (bool) {
+    // Prevent transferring tokens from 0x0.
+    if (from_ == address(0)) {
+      revert InvalidSender();
+    }
+
+    // Prevent burning tokens to 0x0.
+    if (to_ == address(0)) {
+      revert InvalidRecipient();
+    }
+
+    // Intention is to transfer as ERC-20 token (value).
+    uint256 allowed = allowance[from_][msg.sender];
+
+    // Check that the operator has sufficient allowance.
+    if (allowed != type(uint256).max) {
+      allowance[from_][msg.sender] = allowed - value_;
+    }
+
+    // Transferring ERC-20s directly requires the _transfer function.
+    // Handles ERC-721 exemptions internally.
+    return _transferERC20WithERC721(from_, to_, value_);
   }
 
   /// @notice Function for ERC-20 transfers.
@@ -260,7 +279,8 @@ abstract contract ERC404 is IERC404 {
   }
 
   /// @notice Function for ERC-721 transfers with contract support.
-  /// This function only supports moving valid ERC-721 ids, as it does not exist on the ERC-20 spec and will revert otherwise.
+  /// This function only supports moving valid ERC-721 ids, as it does not exist on the ERC-20 
+  /// spec and will revert otherwise.
   function safeTransferFrom(
     address from_,
     address to_,
@@ -270,14 +290,15 @@ abstract contract ERC404 is IERC404 {
   }
 
   /// @notice Function for ERC-721 transfers with contract support and callback data.
-  /// This function only supports moving valid ERC-721 ids, as it does not exist on the ERC-20 spec and will revert otherwise.
+  /// This function only supports moving valid ERC-721 ids, as it does not exist on the 
+  /// ERC-20 spec and will revert otherwise.
   function safeTransferFrom(
     address from_,
     address to_,
     uint256 id_,
     bytes memory data_
   ) public virtual {
-    if (id_ > _minted || id_ == 0) {
+    if (id_ > minted || id_ == 0) {
       revert InvalidId();
     }
 
@@ -306,7 +327,7 @@ abstract contract ERC404 is IERC404 {
       revert PermitDeadlineExpired();
     }
 
-    if (value_ <= _minted && value_ > 0) {
+    if (value_ <= minted && value_ > 0) {
       revert InvalidApproval();
     }
 
@@ -553,7 +574,8 @@ abstract contract ERC404 is IERC404 {
 
   /// @notice Internal function for ERC20 minting
   /// @dev This function will allow minting of new ERC20s.
-  ///      If mintCorrespondingERC721s_ is true, and the recipient is not ERC-721 exempt, it will also mint the corresponding ERC721s.
+  ///      If mintCorrespondingERC721s_ is true, and the recipient is not ERC-721 exempt, it will 
+  ///      also mint the corresponding ERC721s.
   /// Handles ERC-721 exemptions.
   function _mintERC20(
     address to_,
@@ -567,7 +589,8 @@ abstract contract ERC404 is IERC404 {
 
     _transferERC20(address(0), to_, value_);
 
-    // If mintCorrespondingERC721s_ is true, and the recipient is not ERC-721 transfer exempt, mint the corresponding ERC721s.
+    // If mintCorrespondingERC721s_ is true, and the recipient is not ERC-721 transfer exempt, 
+    // mint the corresponding ERC721s.
     if (mintCorrespondingERC721s_ && !erc721TransferExempt[to_]) {
       uint256 nftsToRetrieveOrMint = value_ / units;
       for (uint256 i = 0; i < nftsToRetrieveOrMint;) {
@@ -597,8 +620,8 @@ abstract contract ERC404 is IERC404 {
       id = _storedERC721Ids.popBack();
     } else {
       // Otherwise, mint a new token, should not be able to go over the total fractional supply.
-      _minted++;
-      id = _minted;
+      minted++;
+      id = minted;
     }
 
     address erc721Owner = _getOwnerOf(id);
