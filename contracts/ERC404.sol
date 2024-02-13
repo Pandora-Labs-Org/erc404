@@ -401,7 +401,7 @@ abstract contract ERC404 is IERC404 {
   }
 
   /// @notice Function for self-exemption
-  function setERC721TransferExemption(bool state_) public virtual {
+  function setERC721TransferExempt(bool state_) public virtual {
     _setERC721TransferExempt(msg.sender, state_);
   }
 
