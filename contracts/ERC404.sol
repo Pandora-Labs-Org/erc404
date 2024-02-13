@@ -1,10 +1,10 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import {IERC721Receiver} from "@openzeppelin/contracts/interfaces/IERC721Receiver.sol";
+import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
 import {IERC404} from "./interfaces/IERC404.sol";
-import {ERC721Receiver} from "./lib/ERC721Receiver.sol";
 import {DoubleEndedQueue} from "./lib/DoubleEndedQueue.sol";
-import {IERC165} from "./lib/interfaces/IERC165.sol";
 
 abstract contract ERC404 is IERC404 {
   using DoubleEndedQueue for DoubleEndedQueue.Uint256Deque;
@@ -130,8 +130,11 @@ abstract contract ERC404 is IERC404 {
 
   /// @notice Function for token approvals
   /// @dev This function assumes the operator is attempting to approve an ERC-721
-  ///      if valueOrId is less than the minted count. Note: Unlike setApprovalForAll,
+  ///      if valueOrId is less than the minted count. Unlike setApprovalForAll,
   ///      spender_ must be allowed to be 0x0 so that approval can be revoked.
+  ///
+  ///      Providing type(uint256).max for approval value results in an
+  ///      unlimited approval that is not deducted from on transfers.
   function approve(
     address spender_,
     uint256 valueOrId_
@@ -139,31 +142,45 @@ abstract contract ERC404 is IERC404 {
     // The ERC-721 tokens are 1-indexed, so 0 is not a valid id and indicates that
     // operator is attempting to set the ERC-20 allowance to 0.
     if (valueOrId_ <= minted && valueOrId_ > 0) {
-      // Intention is to approve as ERC-721 token (id).
-      uint256 id = valueOrId_;
-      address erc721Owner = _getOwnerOf(id);
-
-      if (
-        msg.sender != erc721Owner && !isApprovedForAll[erc721Owner][msg.sender]
-      ) {
-        revert Unauthorized();
-      }
-
-      getApproved[id] = spender_;
-
-      emit ERC721Approval(erc721Owner, spender_, id);
+      erc721Approve(spender_, valueOrId_);
     } else {
-      // Prevent granting 0x0 an ERC-20 allowance.
-      if (spender_ == address(0)) {
-        revert InvalidSpender();
-      }
-
-      // Intention is to approve as ERC-20 token (value).
-      uint256 value = valueOrId_;
-      allowance[msg.sender][spender_] = value;
-
-      emit ERC20Approval(msg.sender, spender_, value);
+      return erc20Approve(spender_, valueOrId_);
     }
+
+    return true;
+  }
+
+  function erc721Approve(
+    address spender_,
+    uint256 id_
+  ) public virtual {
+    // Intention is to approve as ERC-721 token (id).
+    address erc721Owner = _getOwnerOf(id_);
+
+    if (
+      msg.sender != erc721Owner && !isApprovedForAll[erc721Owner][msg.sender]
+    ) {
+      revert Unauthorized();
+    }
+
+    getApproved[id_] = spender_;
+
+    emit ERC721Approval(erc721Owner, spender_, id_);
+  }
+
+  function erc20Approve(
+    address spender_,
+    uint256 value_
+  ) public virtual returns (bool) {
+    // Prevent granting 0x0 an ERC-20 allowance.
+    if (spender_ == address(0)) {
+      revert InvalidSpender();
+    }
+
+    // Intention is to approve as ERC-20 token (value).
+    allowance[msg.sender][spender_] = value_;
+
+    emit ERC20Approval(msg.sender, spender_, value_);
 
     return true;
   }
@@ -198,7 +215,7 @@ abstract contract ERC404 is IERC404 {
 
   /// @notice Function for ERC-721 transfers from.
   /// @dev This function is recommended for ERC721 transfers
-  function erc721TransferFrom(address from_, address to_, uint256 id) public virtual {
+  function erc721TransferFrom(address from_, address to_, uint256 id_) public virtual {
     // Prevent transferring tokens from 0x0.
     if (from_ == address(0)) {
       revert InvalidSender();
@@ -209,7 +226,7 @@ abstract contract ERC404 is IERC404 {
       revert InvalidRecipient();
     }
 
-    if (from_ != _getOwnerOf(id)) {
+    if (from_ != _getOwnerOf(id_)) {
       revert Unauthorized();
     }
 
@@ -217,7 +234,7 @@ abstract contract ERC404 is IERC404 {
     if (
       msg.sender != from_ &&
       !isApprovedForAll[from_][msg.sender] &&
-      msg.sender != getApproved[id]
+      msg.sender != getApproved[id_]
     ) {
       revert Unauthorized();
     }
@@ -229,7 +246,7 @@ abstract contract ERC404 is IERC404 {
     // Transfer 1 * units ERC-20 and 1 ERC-721 token.
     // ERC-721 transfer exemptions handled above. Can't make it to this point if either is transfer exempt.
     _transferERC20(from_, to_, units);
-    _transferERC721(from_, to_, id);
+    _transferERC721(from_, to_, id_);
   }
 
   /// @notice Function for ERC-20 transfers from.
@@ -301,14 +318,16 @@ abstract contract ERC404 is IERC404 {
 
     if (
       to_.code.length != 0 &&
-      ERC721Receiver(to_).onERC721Received(msg.sender, from_, id_, data_) !=
-      ERC721Receiver.onERC721Received.selector
+      IERC721Receiver(to_).onERC721Received(msg.sender, from_, id_, data_) !=
+      IERC721Receiver.onERC721Received.selector
     ) {
       revert UnsafeRecipient();
     }
   }
 
   /// @notice Function for EIP-2612 permits
+  /// @dev Providing type(uint256).max for permit value results in an
+  ///      unlimited approval that is not deducted from on transfers.
   function permit(
     address owner_,
     address spender_,
@@ -504,7 +523,7 @@ abstract contract ERC404 is IERC404 {
       for (uint256 i = 0; i < tokensToRetrieveOrMint;) {
         _retrieveOrMintERC721(to_);
         unchecked {
-          i++;
+          ++i;
         }
       }
     } else if (isToERC721TransferExempt) {
@@ -517,7 +536,7 @@ abstract contract ERC404 is IERC404 {
       for (uint256 i = 0; i < tokensToWithdrawAndStore;) {
         _withdrawAndStoreERC721(from_);
         unchecked {
-          i++;
+          ++i;
         }
       }
     } else {
@@ -538,7 +557,7 @@ abstract contract ERC404 is IERC404 {
         uint256 tokenId = _owned[from_][indexOfLastToken];
         _transferERC721(from_, to_, tokenId);
         unchecked {
-          i++;
+          ++i;
         }
       }
 
@@ -597,7 +616,7 @@ abstract contract ERC404 is IERC404 {
         // ERC-721 exemptions handled above.
         _retrieveOrMintERC721(to_);
         unchecked {
-          i++;
+          ++i;
         }
       }
     }
@@ -682,9 +701,8 @@ abstract contract ERC404 is IERC404 {
     for (uint256 i = 0; i < expectedERC721Balance - actualERC721Balance;) {
       // Transfer ERC721 balance in from pool
       _retrieveOrMintERC721(target_);
-
       unchecked {
-        i++;
+        ++i;
       }
     }
   }
@@ -697,9 +715,8 @@ abstract contract ERC404 is IERC404 {
       // Transfer out ERC721 balance
       uint256 id = _owned[target_][_owned[target_].length - 1];
       _transferERC721(target_, address(0), id);
-
       unchecked {
-        i++;
+        ++i;
       }
     }
   }

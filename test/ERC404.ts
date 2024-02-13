@@ -1578,6 +1578,16 @@ describe("ERC404", function () {
     })
   })
 
+  describe("#minted", function () {
+    it("Returns the total number of tokens minted for legacy support", async function () {
+      const f = await loadFixture(
+        deployExampleERC404WithSomeTokensTransferredToRandomAddress,
+      )
+
+      expect(await f.contract.minted()).to.eq(5n)
+    })
+  })
+
   describe("#setApprovalForAll", function () {
     context(
       "Granting approval to a valid address besides themselves",
