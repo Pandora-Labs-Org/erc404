@@ -9,10 +9,11 @@ pragma solidity ^0.8.20;
  * FIFO queues. Storage use is optimized, and all operations are O(1) constant time. This includes {clear}, given that
  * the existing queue contents are left in storage.
  *
- * The struct is called `Bytes32Deque`. Other types can be cast to and from `bytes32`. This data structure can only be
- * used in storage, and not in memory.
+ * The struct is called `Uint16Deque`. And is designed for packed uint16 values, though this approach can be  
+ * extrapolated to different implementations. This data structure can only be used in storage, and not in memory.
+ *
  * ```solidity
- * DoubleEndedQueue.Bytes32Deque queue;
+ * PackedDoubleEndedQueue.Uint16Deque queue;
  * ```
  */
 library PackedDoubleEndedQueue {
@@ -80,14 +81,14 @@ library PackedDoubleEndedQueue {
    */
   function popBack(
     Uint16Deque storage deque
-  ) internal returns (uint256 value) {
+  ) internal returns (uint16 value) {
     unchecked {
       uint64 backIndex = deque._endIndex;
       uint64 backSlot = deque._endSlot;
 
       if (backIndex == deque._beginIndex && backSlot == deque._beginSlot) revert QueueEmpty();
 
-      if (backSlot <= 0) {
+      if (backSlot == 0) {
         --backIndex;
         backSlot = 15;
       } else {
@@ -109,12 +110,12 @@ library PackedDoubleEndedQueue {
    *
    * Reverts with {QueueFull} if the queue is full.
    */
-  function pushFront(Uint16Deque storage deque, uint16 value) internal {
+  function pushFront(Uint16Deque storage deque, uint16 value_) internal {
     unchecked {
       uint64 frontIndex = deque._beginIndex;
       uint64 frontSlot = deque._beginSlot;
 
-      if (frontSlot <= 0) {
+      if (frontSlot == 0) {
         --frontIndex;
         frontSlot = 15;
       } else {
@@ -123,7 +124,7 @@ library PackedDoubleEndedQueue {
 
       if (frontIndex == deque._endIndex) revert QueueFull();
 
-      deque._data[frontIndex] = _setData(deque._data[frontIndex], frontSlot, value);
+      deque._data[frontIndex] = _setData(deque._data[frontIndex], frontSlot, value_);
       deque._beginIndex = frontIndex;
       deque._beginSlot = frontSlot;
     }
@@ -138,7 +139,7 @@ library PackedDoubleEndedQueue {
   function at(
     Uint16Deque storage deque,
     uint256 index_
-  ) internal view returns (uint256 value) {
+  ) internal view returns (uint16 value) {
     if (index_ >= length(deque) * 16) revert QueueOutOfBounds();
 
     unchecked {

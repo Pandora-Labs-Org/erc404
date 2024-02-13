@@ -6,7 +6,9 @@ import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
 import {IERC404} from "./interfaces/IERC404.sol";
 import {PackedDoubleEndedQueue} from "./lib/PackedDoubleEndedQueue.sol";
 
-abstract contract ERC404 is IERC404 {
+/// @dev This is an optimized ERC404 implementation designed to support smaller collections, 
+///      with id's up to a maximum of 65535.
+abstract contract ERC404U16 is IERC404 {
   using PackedDoubleEndedQueue for PackedDoubleEndedQueue.Uint16Deque;
 
   /// @dev The queue of ERC-721 tokens stored in the contract.
@@ -98,7 +100,17 @@ abstract contract ERC404 is IERC404 {
   function owned(
     address owner_
   ) public view virtual returns (uint256[] memory) {
-    return _owned[owner_];
+    uint256[] memory ownedAsU256 = new uint256[](_owned[owner_].length);
+
+    for (uint256 i = 0; i < _owned[owner_].length;) {
+      ownedAsU256[i] = _owned[owner_][i];
+
+      unchecked {
+        ++i;
+      }
+    }
+
+    return ownedAsU256;
   }
 
   function erc721BalanceOf(
@@ -481,7 +493,7 @@ abstract contract ERC404 is IERC404 {
       if (updatedId != id_) {
         uint256 updatedIndex = _getOwnedIndex(id_);
         // update _owned for sender
-        _owned[from_][updatedIndex] = updatedId;
+        _owned[from_][updatedIndex] = uint16(updatedId);
         // update index for the moved id
         _setOwnedIndex(updatedId, updatedIndex);
       }
@@ -496,7 +508,7 @@ abstract contract ERC404 is IERC404 {
       // Update owner of the token to the new owner.
       _setOwnerOf(id_, to_);
       // Push token onto the new owner's stack.
-      _owned[to_].push(id_);
+      _owned[to_].push(uint16(id_));
       // Update index for new owner's stack.
       _setOwnedIndex(id_, _owned[to_].length - 1);
     } else {
