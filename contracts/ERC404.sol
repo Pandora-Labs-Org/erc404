@@ -612,7 +612,11 @@ abstract contract ERC404 is IERC404 {
     // Transfer the token to the recipient, either transferring from the contract's bank or minting.
     // Does not handle ERC-721 exemptions.
     _transferERC721(erc721Owner, to_, id);
+
+    _afterMintERC721(to_, id);
   }
+
+  function _afterMintERC721(address to_, uint256 id_) internal virtual {}
 
   /// @notice Internal function for ERC-721 deposits to bank (this contract).
   /// @dev This function will allow depositing of ERC-721s to the bank, which can be retrieved by future minters.
