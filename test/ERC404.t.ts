@@ -3,12 +3,12 @@ import { time, loadFixture } from "@nomicfoundation/hardhat-network-helpers"
 import { ethers, network } from "hardhat"
 
 describe("ERC404", function () {
-  async function deployExampleERC404() {
+  async function deployERC404ExampleA() {
     const signers = await ethers.getSigners()
-    const factory = await ethers.getContractFactory("ExampleERC404")
+    const factory = await ethers.getContractFactory("ERC404ExampleA")
 
     const name = "Example"
-    const symbol = "EXM"
+    const symbol = "EX-A"
     const decimals = 18n
     const units = 10n ** decimals
     const maxTotalSupplyERC721 = 100n
@@ -131,7 +131,7 @@ describe("ERC404", function () {
     const factory = await ethers.getContractFactory("MinimalERC404")
 
     const name = "Example"
-    const symbol = "EXM"
+    const symbol = "EX-A"
     const decimals = 18n
     const units = 10n ** decimals
     const maxTotalSupplyERC721 = 100n
@@ -230,8 +230,8 @@ describe("ERC404", function () {
     }
   }
 
-  async function deployExampleERC404WithTokensInSecondSigner() {
-    const f = await loadFixture(deployExampleERC404)
+  async function deployERC404ExampleAWithTokensInSecondSigner() {
+    const f = await loadFixture(deployERC404ExampleA)
     const from = f.signers[1]
     const to = f.signers[2]
 
@@ -271,8 +271,8 @@ describe("ERC404", function () {
     }
   }
 
-  async function deployExampleERC404WithSomeTokensTransferredToRandomAddress() {
-    const f = await loadFixture(deployExampleERC404)
+  async function deployERC404ExampleAWithSomeTokensTransferredToRandomAddress() {
+    const f = await loadFixture(deployERC404ExampleA)
 
     const targetAddress = f.randomAddresses[0]
 
@@ -298,7 +298,7 @@ describe("ERC404", function () {
 
   describe("#constructor", function () {
     it("Initializes the contract with the expected values", async function () {
-      const f = await loadFixture(deployExampleERC404)
+      const f = await loadFixture(deployERC404ExampleA)
 
       expect(await f.contract.name()).to.equal(f.deployConfig.name)
       expect(await f.contract.symbol()).to.equal(f.deployConfig.symbol)
@@ -309,7 +309,7 @@ describe("ERC404", function () {
     })
 
     it("Mints the initial supply of tokens to the initial mint recipient", async function () {
-      const f = await loadFixture(deployExampleERC404)
+      const f = await loadFixture(deployERC404ExampleA)
 
       // Expect full supply of ERC20 tokens to be minted to the initial recipient.
       expect(
@@ -334,7 +334,7 @@ describe("ERC404", function () {
     })
 
     it("Initializes the exemption list with the initial mint recipient", async function () {
-      const f = await loadFixture(deployExampleERC404)
+      const f = await loadFixture(deployERC404ExampleA)
 
       expect(
         await f.contract.erc721TransferExempt(
@@ -347,7 +347,7 @@ describe("ERC404", function () {
   describe("#erc20TotalSupply", function () {
     it("Returns the correct total supply", async function () {
       const f = await loadFixture(
-        deployExampleERC404WithSomeTokensTransferredToRandomAddress,
+        deployERC404ExampleAWithSomeTokensTransferredToRandomAddress,
       )
 
       expect(await f.contract.erc20TotalSupply()).to.eq(
@@ -359,7 +359,7 @@ describe("ERC404", function () {
   describe("#erc721TotalSupply", function () {
     it("Returns the correct total supply", async function () {
       const f = await loadFixture(
-        deployExampleERC404WithSomeTokensTransferredToRandomAddress,
+        deployERC404ExampleAWithSomeTokensTransferredToRandomAddress,
       )
 
       expect(await f.contract.erc721TotalSupply()).to.eq(5n)
@@ -370,7 +370,7 @@ describe("ERC404", function () {
     context("Some tokens have been minted", function () {
       it("Reverts if the token ID does not exist", async function () {
         const f = await loadFixture(
-          deployExampleERC404WithSomeTokensTransferredToRandomAddress,
+          deployERC404ExampleAWithSomeTokensTransferredToRandomAddress,
         )
 
         await expect(f.contract.ownerOf(11n)).to.be.revertedWithCustomError(
@@ -381,7 +381,7 @@ describe("ERC404", function () {
 
       it("Reverts if the token ID is 0", async function () {
         const f = await loadFixture(
-          deployExampleERC404WithSomeTokensTransferredToRandomAddress,
+          deployERC404ExampleAWithSomeTokensTransferredToRandomAddress,
         )
 
         await expect(f.contract.ownerOf(0n)).to.be.revertedWithCustomError(
@@ -392,7 +392,7 @@ describe("ERC404", function () {
 
       it("Returns the address of the owner of the token", async function () {
         const f = await loadFixture(
-          deployExampleERC404WithSomeTokensTransferredToRandomAddress,
+          deployERC404ExampleAWithSomeTokensTransferredToRandomAddress,
         )
 
         // Transferred 5 full tokens from a exempted address to the target address (not exempted), which minted the first 5 NFTs.
@@ -631,7 +631,7 @@ describe("ERC404", function () {
       async function () {
         it("Handles the case of the receiver gaining a whole new token", async function () {
           const f = await loadFixture(
-            deployExampleERC404WithTokensInSecondSigner,
+            deployERC404ExampleAWithTokensInSecondSigner,
           )
 
           // Receiver starts out with 0.9 tokens
@@ -686,7 +686,7 @@ describe("ERC404", function () {
 
         it("Handles the case of the sender losing a partial token, dropping it below a full token", async function () {
           const f = await loadFixture(
-            deployExampleERC404WithTokensInSecondSigner,
+            deployERC404ExampleAWithTokensInSecondSigner,
           )
 
           // Initial balances
@@ -738,7 +738,9 @@ describe("ERC404", function () {
 
     context("Moving one or more full tokens", async function () {
       it("Transfers whole tokens without fractional impact correctly", async function () {
-        const f = await loadFixture(deployExampleERC404WithTokensInSecondSigner)
+        const f = await loadFixture(
+          deployERC404ExampleAWithTokensInSecondSigner,
+        )
 
         // Initial balances
         const fromBalancesBefore = await getBalances(f.contract, f.from.address)
@@ -789,7 +791,9 @@ describe("ERC404", function () {
         // - The receiver gains a whole new token (0.9 + 3.2 (3 whole, 0.2 fractional) = 4.1)
         // - The sender transfers 3 whole tokens to the receiver (99.1 - 3.2 (3 whole, 0.2 fractional) = 95.9)
 
-        const f = await loadFixture(deployExampleERC404WithTokensInSecondSigner)
+        const f = await loadFixture(
+          deployERC404ExampleAWithTokensInSecondSigner,
+        )
 
         // Receiver starts out with 0.9 tokens
         const startingBalanceOfReceiver = (f.deployConfig.units / 10n) * 9n // 0.9 tokens
@@ -932,7 +936,7 @@ describe("ERC404", function () {
 
   describe("#transferFrom", function () {
     it("Doesn't allow anyone to transfer from 0x0", async function () {
-      const f = await loadFixture(deployExampleERC404)
+      const f = await loadFixture(deployERC404ExampleA)
 
       // Attempt to transfer from 0x0. This will always fail as it's not possible for the 0x0 address to sign a transaction, so it can neither send a transfer nor give another address an allowance.
       await expect(
@@ -943,7 +947,7 @@ describe("ERC404", function () {
     })
 
     it("Doesn't allow anyone to transfer to 0x0", async function () {
-      const f = await loadFixture(deployExampleERC404)
+      const f = await loadFixture(deployERC404ExampleA)
 
       // Attempt to transfer to 0x0.
       await expect(
@@ -954,7 +958,7 @@ describe("ERC404", function () {
     })
 
     it("Doesn't allow anyone to transfer from 0x0 to 0x0", async function () {
-      const f = await loadFixture(deployExampleERC404)
+      const f = await loadFixture(deployERC404ExampleA)
 
       // Attempt to transfer to 0x0 from 0x0.
       await expect(
@@ -1095,10 +1099,7 @@ describe("ERC404", function () {
           f.contract
             .connect(from)
             .transferFrom(from.address, to.address, tokenId),
-        ).to.be.revertedWithCustomError(
-          f.contract,
-          "Unauthorized",
-        )
+        ).to.be.revertedWithCustomError(f.contract, "Unauthorized")
       })
     })
 
@@ -1173,10 +1174,7 @@ describe("ERC404", function () {
             f.contract
               .connect(from)
               .transferFrom(from.address, to.address, tokenId),
-          ).to.be.revertedWithCustomError(
-            f.contract,
-            "Unauthorized",
-          )
+          ).to.be.revertedWithCustomError(f.contract, "Unauthorized")
         })
       },
     )
@@ -1420,7 +1418,7 @@ describe("ERC404", function () {
 
   describe("#transfer", function () {
     it("Reverts when attempting to transfer anything to 0x0", async function () {
-      const f = await loadFixture(deployExampleERC404)
+      const f = await loadFixture(deployERC404ExampleA)
 
       // Attempt to send 1 ERC-721 to 0x0.
       await expect(
@@ -1440,24 +1438,20 @@ describe("ERC404", function () {
 
   describe("#setERC721TransferExempt", function () {
     it("Allows the caller to exempt themselves", async function () {
-      const f = await loadFixture(deployExampleERC404)
+      const f = await loadFixture(deployERC404ExampleA)
 
       expect(
         await f.contract.erc721TransferExempt(f.randomAddresses[1]),
       ).to.equal(false)
 
       // Add a random address to the exemption list
-      await f.contract
-        .connect(f.signers[1])
-        .setSelfERC721TransferExempt(true)
+      await f.contract.connect(f.signers[1]).setSelfERC721TransferExempt(true)
       expect(
         await f.contract.erc721TransferExempt(f.signers[1].address),
       ).to.equal(true)
 
       // Remove the random address from the exemption list
-      await f.contract
-        .connect(f.signers[1])
-        .setSelfERC721TransferExempt(false)
+      await f.contract.connect(f.signers[1]).setSelfERC721TransferExempt(false)
       expect(
         await f.contract.erc721TransferExempt(f.signers[1].address),
       ).to.equal(false)
@@ -1466,7 +1460,7 @@ describe("ERC404", function () {
 
   describe("#_setERC721TransferExempt", function () {
     it("Allows the owner to add and remove addresses from the exemption list", async function () {
-      const f = await loadFixture(deployExampleERC404)
+      const f = await loadFixture(deployERC404ExampleA)
 
       expect(
         await f.contract.erc721TransferExempt(f.randomAddresses[1]),
@@ -1490,14 +1484,14 @@ describe("ERC404", function () {
     })
 
     it("Rebalances ERC721 tokens held by the target", async function () {
-      const f = await loadFixture(deployExampleERC404)
+      const f = await loadFixture(deployERC404ExampleA)
 
       const targetAddress = f.randomAddresses[0]
 
       // Transfer 3.5 full NFT worth of tokens to that address.
       await f.contract
         .connect(f.signers[0])
-        .transfer(targetAddress, 35n * f.deployConfig.units / 10n)
+        .transfer(targetAddress, (35n * f.deployConfig.units) / 10n)
 
       expect(await f.contract.erc721BalanceOf(targetAddress)).to.equal(3n)
 
@@ -1509,9 +1503,11 @@ describe("ERC404", function () {
       // Target ERC721 balance should be adjusted
       expect(await f.contract.erc721BalanceOf(targetAddress)).to.equal(0n)
       expect(await f.contract.getERC721QueueLength()).to.equal(3n)
-      expect(await f.contract.erc20BalanceOf(targetAddress)).to.equal(35n * f.deployConfig.units / 10n)
-      expect((await f.contract.getERC721TokensInQueue(0, 3))[0]).to.equal(1);
-      
+      expect(await f.contract.erc20BalanceOf(targetAddress)).to.equal(
+        (35n * f.deployConfig.units) / 10n,
+      )
+      expect((await f.contract.getERC721TokensInQueue(0, 3))[0]).to.equal(1)
+
       // Remove that address from the exemption list.
       await f.contract
         .connect(f.signers[0])
@@ -1520,14 +1516,16 @@ describe("ERC404", function () {
       // Target ERC721 balance should be adjusted
       expect(await f.contract.erc721BalanceOf(targetAddress)).to.equal(3n)
       expect(await f.contract.getERC721QueueLength()).to.equal(0n)
-      expect(await f.contract.erc20BalanceOf(targetAddress)).to.equal(35n * f.deployConfig.units / 10n)
+      expect(await f.contract.erc20BalanceOf(targetAddress)).to.equal(
+        (35n * f.deployConfig.units) / 10n,
+      )
     })
   })
 
   describe("#erc721BalanceOf", function () {
     context("The address has 0.9 ERC-20 balance", function () {
       it("Returns the correct balance (0 ERC-721)", async function () {
-        const f = await loadFixture(deployExampleERC404)
+        const f = await loadFixture(deployERC404ExampleA)
 
         const targetAddress = f.randomAddresses[0]
         const transferAmount = (f.deployConfig.units / 10n) * 9n // 0.9 tokens
@@ -1546,7 +1544,7 @@ describe("ERC404", function () {
 
     context("The address has exactly 1.0 ERC-20 balance", function () {
       it("Returns the correct balance (1 ERC-721)", async function () {
-        const f = await loadFixture(deployExampleERC404)
+        const f = await loadFixture(deployERC404ExampleA)
 
         const targetAddress = f.randomAddresses[0]
         const transferAmount = f.deployConfig.units // 1.0 tokens
@@ -1565,7 +1563,7 @@ describe("ERC404", function () {
 
     context("The address has 1.1 ERC-20 balance", function () {
       it("Returns the correct balance (1 ERC-721)", async function () {
-        const f = await loadFixture(deployExampleERC404)
+        const f = await loadFixture(deployERC404ExampleA)
 
         const targetAddress = f.randomAddresses[0]
         const transferAmount = (f.deployConfig.units / 10n) * 9n // 0.9 tokens
@@ -1585,7 +1583,7 @@ describe("ERC404", function () {
 
   describe("#erc20BalanceOf", function () {
     it("Returns the correct balance", async function () {
-      const f = await loadFixture(deployExampleERC404)
+      const f = await loadFixture(deployERC404ExampleA)
 
       const targetAddress = f.randomAddresses[0]
       const transferAmount = (f.deployConfig.units / 10n) * 9n // 0.9 tokens
@@ -1613,7 +1611,7 @@ describe("ERC404", function () {
   describe("#minted", function () {
     it("Returns the total number of tokens minted for legacy support", async function () {
       const f = await loadFixture(
-        deployExampleERC404WithSomeTokensTransferredToRandomAddress,
+        deployERC404ExampleAWithSomeTokensTransferredToRandomAddress,
       )
 
       expect(await f.contract.minted()).to.eq(5n)
@@ -1625,7 +1623,7 @@ describe("ERC404", function () {
       "Granting approval to a valid address besides themselves",
       function () {
         it("Allows a user to set an operator who has approval for all their ERC-721 tokens", async function () {
-          const f = await loadFixture(deployExampleERC404)
+          const f = await loadFixture(deployERC404ExampleA)
 
           const msgSender = f.signers[0]
           const intendedOperator = f.signers[1]
@@ -1655,7 +1653,7 @@ describe("ERC404", function () {
         })
 
         it("Allows a user to remove an operator's approval for all", async function () {
-          const f = await loadFixture(deployExampleERC404)
+          const f = await loadFixture(deployERC404ExampleA)
 
           const msgSender = f.signers[0]
           const intendedOperator = f.signers[1]
@@ -1682,7 +1680,7 @@ describe("ERC404", function () {
 
     context("Granting approval to themselves", function () {
       it("Allows a user to set themselves as an operator who has approval for all their ERC-721 tokens", async function () {
-        const f = await loadFixture(deployExampleERC404)
+        const f = await loadFixture(deployERC404ExampleA)
 
         const msgSender = f.signers[0]
 
@@ -1707,7 +1705,7 @@ describe("ERC404", function () {
       })
 
       it("Allows a user to remove their own approval for all", async function () {
-        const f = await loadFixture(deployExampleERC404)
+        const f = await loadFixture(deployERC404ExampleA)
 
         const msgSender = f.signers[0]
 
@@ -1732,7 +1730,7 @@ describe("ERC404", function () {
 
     context("Granting approval to 0x0", function () {
       it("Reverts if the user attempts to grant or revoke approval for all to 0x0", async function () {
-        const f = await loadFixture(deployExampleERC404)
+        const f = await loadFixture(deployERC404ExampleA)
 
         const msgSender = f.signers[0]
 

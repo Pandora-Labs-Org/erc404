@@ -6,7 +6,7 @@ import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {ERC404} from "../ERC404.sol";
 import {ERC404MerkleClaim} from "../extensions/ERC404MerkleClaim.sol";
 
-contract ExampleERC404 is Ownable, ERC404, ERC404MerkleClaim {
+contract ERC404ExampleA is Ownable, ERC404, ERC404MerkleClaim {
   constructor(
     string memory name_,
     string memory symbol_,
@@ -40,7 +40,10 @@ contract ExampleERC404 is Ownable, ERC404, ERC404MerkleClaim {
     _toggleAirdropIsOpen();
   }
 
-  function setERC721TransferExempt(address account_, bool value_) external onlyOwner {
+  function setERC721TransferExempt(
+    address account_,
+    bool value_
+  ) external onlyOwner {
     _setERC721TransferExempt(account_, value_);
   }
 }
