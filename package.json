@@ -12,6 +12,8 @@
   "dependencies": {
     "@nomicfoundation/hardhat-verify": "^2.0.4",
     "@openzeppelin/contracts": "^5.0.1",
+    "@uniswap/v2-core": "^1.0.1",
+    "@uniswap/v2-periphery": "1.1.0-beta.0",
     "currency.js": "^2.0.4",
     "dotenv": "^16.4.3",
     "solhint": "^4.1.1"

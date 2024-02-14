@@ -2,18 +2,19 @@
 pragma solidity ^0.8.20;
 
 import {ERC404} from "../ERC404.sol";
+import {IUniswapV2Router02} from "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 
 abstract contract ERC404UniswapV2Exempt is ERC404 {
   constructor(
-    address uniswapV2Factory_,
-    address uniswapV2Router_,
-    address weth_
+    address uniswapV2Router_
   ) {
+    IUniswapV2Router02 uniswapV2RouterContract = IUniswapV2Router02(uniswapV2Router_);
+
     // Set the Uniswap v2 router as exempt.
     _setERC721TransferExempt(uniswapV2Router_, true);
 
     // Determine the Uniswap v2 pair address for this token.
-    address uniswapV2Pair = _getUniswapV2Pair(uniswapV2Factory_, weth_);
+    address uniswapV2Pair = _getUniswapV2Pair(uniswapV2RouterContract.factory(), uniswapV2RouterContract.WETH());
 
     // Set the Uniswap v2 pair as exempt.
     _setERC721TransferExempt(uniswapV2Pair, true);

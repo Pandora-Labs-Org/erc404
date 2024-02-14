@@ -14,14 +14,12 @@ contract ERC404ExampleB is Ownable, ERC404, ERC404UniswapV2Exempt {
     uint256 maxTotalSupplyERC721_,
     address initialOwner_,
     address initialMintRecipient_,
-    address uniswapV2Factory_,
-    address uniswapV2Router_,
-    address weth_
-  ) ERC404(name_, symbol_, decimals_) Ownable(initialOwner_) ERC404UniswapV2Exempt(
-    uniswapV2Factory_,
-    uniswapV2Router_,
-    weth_
-  ) {
+    address uniswapV2Router_
+  )
+    ERC404(name_, symbol_, decimals_)
+    Ownable(initialOwner_)
+    ERC404UniswapV2Exempt(uniswapV2Router_)
+  {
     // Do not mint the ERC721s to the initial owner, as it's a waste of gas.
     _setERC721TransferExempt(initialMintRecipient_, true);
     _mintERC20(initialMintRecipient_, maxTotalSupplyERC721_ * units, false);
