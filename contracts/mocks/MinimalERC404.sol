@@ -25,7 +25,10 @@ contract MinimalERC404 is Ownable, ERC404 {
     return string.concat("https://example.com/token/", Strings.toString(id_));
   }
 
-  function setERC721TransferExempt(address account_, bool value_) external onlyOwner {
+  function setERC721TransferExempt(
+    address account_,
+    bool value_
+  ) external onlyOwner {
     _setERC721TransferExempt(account_, value_);
   }
 }

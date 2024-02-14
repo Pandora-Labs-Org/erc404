@@ -2,10 +2,7 @@
 pragma solidity ^0.8.20;
 
 contract MockInvalidERC721Receiver {
- 
-
-   function wrongSelector(
-  ) external pure {
+  function wrongSelector() external pure {
     // NOOP
   }
 
