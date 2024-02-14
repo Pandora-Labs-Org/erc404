@@ -28,6 +28,20 @@ async function main() {
 
   message("erc404V2Contract")
   await runTests(erc404V2Contract)
+
+  const erc404U16V2Factory = await ethers.getContractFactory("ExampleERC404U16")
+  const erc404U16V2Contract = await erc404U16V2Factory.deploy(
+    "ExampleERC404U16",
+    "ERC404U16",
+    18,
+    500,
+    signers[0].address,
+    signers[0].address,
+  )
+  await erc404U16V2Contract.waitForDeployment()
+
+  message("erc404U16V2Contract")
+  await runTests(erc404U16V2Contract)
 }
 
 async function runTests(contract: ethers.Contract) {
