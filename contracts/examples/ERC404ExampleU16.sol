@@ -5,7 +5,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {ERC404U16} from "../ERC404U16.sol";
 
-contract ExampleERC404U16 is Ownable, ERC404U16 {
+contract ERC404ExampleU16 is Ownable, ERC404U16 {
   constructor(
     string memory name_,
     string memory symbol_,

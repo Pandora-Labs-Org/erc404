@@ -3,7 +3,7 @@ import { time, loadFixture } from "@nomicfoundation/hardhat-network-helpers"
 import { ethers, network } from "hardhat"
 
 describe("ERC404UniswapV2Exempt", function () {
-  async function deployERC404ExampleB() {
+  async function deployERC404ExampleUniswapV2() {
     const signers = await ethers.getSigners()
 
     // Deploy Uniswap v2 factory.
@@ -38,9 +38,9 @@ describe("ERC404UniswapV2Exempt", function () {
 
     // Deploy the token.
 
-    const factory = await ethers.getContractFactory("ERC404ExampleB")
+    const factory = await ethers.getContractFactory("ERC404ExampleUniswapV2")
 
-    const name = "ExampleB"
+    const name = "ExampleUniswapV2"
     const symbol = "EX-B"
     const decimals = 18n
     const units = 10n ** decimals
@@ -90,7 +90,7 @@ describe("ERC404UniswapV2Exempt", function () {
 
   describe("#constructor", function () {
     it("Adds the UniswapV2Router02 to the ERC-721 transfer exempt list", async function () {
-      const f = await loadFixture(deployERC404ExampleB)
+      const f = await loadFixture(deployERC404ExampleUniswapV2)
 
       const uniswapV2RouterContractAddress =
         await f.deployConfig.uniswapV2RouterContract.getAddress()
@@ -105,7 +105,7 @@ describe("ERC404UniswapV2Exempt", function () {
     })
 
     it("Adds the Uniswap v2 Pair address for this token + WETH to the ERC-721 transfer exempt list", async function () {
-      const f = await loadFixture(deployERC404ExampleB)
+      const f = await loadFixture(deployERC404ExampleUniswapV2)
 
       // Create the pair using the Uniswap v2 factory.
       await f.deployConfig.uniswapV2FactoryContract.createPair(

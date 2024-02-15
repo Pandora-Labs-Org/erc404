@@ -67,6 +67,9 @@ abstract contract ERC404 is IERC404 {
   /// @dev Owned index bitmask for packed ownership data
   uint256 private constant _BITMASK_OWNED_INDEX = ((1 << 96) - 1) << 160;
 
+  /// @dev Constant for token id encoding
+  uint256 internal constant _ID_ENCODING_PREFIX = 1 << 255;
+
   constructor(string memory name_, string memory symbol_, uint8 decimals_) {
     name = name_;
     symbol = symbol_;
@@ -90,7 +93,7 @@ abstract contract ERC404 is IERC404 {
     erc721Owner = _getOwnerOf(id_);
 
     // If the id_ is beyond the range of minted tokens, is 0, or the token is not owned by anyone, revert.
-    if (id_ > minted || id_ == 0 || erc721Owner == address(0)) {
+    if (id_ <= _ID_ENCODING_PREFIX || erc721Owner == address(0)) {
       revert NotFound();
     }
   }
@@ -155,7 +158,7 @@ abstract contract ERC404 is IERC404 {
   ) public virtual returns (bool) {
     // The ERC-721 tokens are 1-indexed, so 0 is not a valid id and indicates that
     // operator is attempting to set the ERC-20 allowance to 0.
-    if (valueOrId_ <= minted && valueOrId_ > 0) {
+    if (valueOrId_ > _ID_ENCODING_PREFIX && valueOrId_ != type(uint256).max) {
       erc721Approve(spender_, valueOrId_);
     } else {
       return erc20Approve(spender_, valueOrId_);
@@ -176,7 +179,7 @@ abstract contract ERC404 is IERC404 {
 
     getApproved[id_] = spender_;
 
-    emit ERC721Approval(erc721Owner, spender_, id_);
+    emit Approval(erc721Owner, spender_, id_);
   }
 
   /// @dev Providing type(uint256).max for approval value results in an
@@ -216,7 +219,7 @@ abstract contract ERC404 is IERC404 {
     address to_,
     uint256 valueOrId_
   ) public virtual returns (bool) {
-    if (valueOrId_ <= minted && valueOrId_ > 0) {
+    if (valueOrId_ > _ID_ENCODING_PREFIX) {
       erc721TransferFrom(from_, to_, valueOrId_);
     } else {
       // Intention is to transfer as ERC-20 token (value).
@@ -331,7 +334,7 @@ abstract contract ERC404 is IERC404 {
     uint256 id_,
     bytes memory data_
   ) public virtual {
-    if (id_ > minted || id_ == 0) {
+    if (id_ <= _ID_ENCODING_PREFIX) {
       revert InvalidId();
     }
 
@@ -362,7 +365,7 @@ abstract contract ERC404 is IERC404 {
       revert PermitDeadlineExpired();
     }
 
-    if (value_ <= minted && value_ > 0) {
+    if (value_ > _ID_ENCODING_PREFIX && value_ != type(uint256).max) {
       revert InvalidApproval();
     }
 
@@ -509,7 +512,7 @@ abstract contract ERC404 is IERC404 {
       delete _ownedData[id_];
     }
 
-    emit ERC721Transfer(from_, to_, id_);
+    emit Transfer(from_, to_, id_);
   }
 
   /// @notice Internal function for ERC-20 transfers. Also handles any ERC-721 transfers that may be required.
@@ -587,24 +590,11 @@ abstract contract ERC404 is IERC404 {
       //
       // Check if the send causes the sender to lose a whole token that was represented by an ERC-721
       // due to a fractional part being transferred.
-      //
-      // To check this, look if subtracting the fractional amount from the balance causes the balance to
-      // drop below the original balance % units, which represents the number of whole tokens they started with.
-      uint256 fractionalAmount = value_ % units;
-
-      if (
-        (erc20BalanceOfSenderBefore - fractionalAmount) / units <
-        (erc20BalanceOfSenderBefore / units)
-      ) {
+      if (erc20BalanceOfSenderBefore / units - erc20BalanceOf(from_) / units > nftsToTransfer) {
         _withdrawAndStoreERC721(from_);
       }
 
-      // Check if the receive causes the receiver to gain a whole new token that should be represented
-      // by an NFT due to receiving a fractional part that completes a whole token.
-      if (
-        (erc20BalanceOfReceiverBefore + fractionalAmount) / units >
-        (erc20BalanceOfReceiverBefore / units)
-      ) {
+      if (erc20BalanceOf(to_) / units - erc20BalanceOfReceiverBefore / units > nftsToTransfer) {
         _retrieveOrMintERC721(to_);
       }
     }
@@ -625,6 +615,10 @@ abstract contract ERC404 is IERC404 {
     /// You cannot mint to the zero address (you can't mint and immediately burn in the same transfer).
     if (to_ == address(0)) {
       revert InvalidRecipient();
+    }
+
+    if (totalSupply + value_ > _ID_ENCODING_PREFIX) {
+      revert MintLimitReached();
     }
 
     _transferERC20(address(0), to_, value_);
@@ -654,14 +648,20 @@ abstract contract ERC404 is IERC404 {
 
     uint256 id;
 
-    if (!DoubleEndedQueue.empty(_storedERC721Ids)) {
+    if (!_storedERC721Ids.empty()) {
       // If there are any tokens in the bank, use those first.
       // Pop off the end of the queue (FIFO).
       id = _storedERC721Ids.popBack();
     } else {
       // Otherwise, mint a new token, should not be able to go over the total fractional supply.
       ++minted;
-      id = minted;
+
+      // Reserve max uint256 for approvals
+      if (minted == type(uint256).max) {
+        revert MintLimitReached();
+      }
+
+      id = _ID_ENCODING_PREFIX + minted;
     }
 
     address erc721Owner = _getOwnerOf(id);
