@@ -15,9 +15,9 @@ async function main() {
   message("pandoraContract")
   await runTests(pandoraContract)
 
-  const erc404V2Factory = await ethers.getContractFactory("ExampleERC404")
+  const erc404V2Factory = await ethers.getContractFactory("ERC404Example")
   const erc404V2Contract = await erc404V2Factory.deploy(
-    "ExampleERC404",
+    "ERC404Example",
     "ERC404",
     18,
     500,
@@ -29,9 +29,9 @@ async function main() {
   message("erc404V2Contract")
   await runTests(erc404V2Contract)
 
-  const erc404U16V2Factory = await ethers.getContractFactory("ExampleERC404U16")
+  const erc404U16V2Factory = await ethers.getContractFactory("ERC404ExampleU16")
   const erc404U16V2Contract = await erc404U16V2Factory.deploy(
-    "ExampleERC404U16",
+    "ERC404ExampleU16",
     "ERC404U16",
     18,
     500,
