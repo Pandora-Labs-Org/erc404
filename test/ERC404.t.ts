@@ -2447,4 +2447,96 @@ describe("ERC404", function () {
       })
     })
   })
+
+  describe.only("Attacks", function () {
+    it("Transferring any amount from self to self should net result in no change in balance", async function () {
+      const f = await loadFixture(deployMinimalERC404WithERC20sAndERC721sMinted)
+
+      const user1 = f.signers[0]
+      const user2 = f.signers[1]
+      const user3 = f.signers[2]
+
+      // Expect the mint recipient to have the full supply of ERC20 tokens.
+      expect(await f.contract.erc20BalanceOf(user1.address)).to.equal(
+        f.deployConfig.maxTotalSupplyERC20,
+      )
+
+      // Expect user1 not to be whitelisted
+      expect(await f.contract.erc721TransferExempt(user1.address)).to.equal(
+        false,
+      )
+
+      // Expect the mint recipient to have the 0 ERC721 tokens
+      expect(await f.contract.erc721BalanceOf(user1.address)).to.equal(
+        f.deployConfig.maxTotalSupplyERC20 / f.deployConfig.units,
+      )
+
+      // Expect user2 not to be whitelisted
+      expect(await f.contract.erc721TransferExempt(user2.address)).to.equal(
+        false,
+      )
+
+      // Transfer 5 tokens from user1 to user2.
+      const value1 = 5n * f.deployConfig.units
+
+      await f.contract.connect(user1).transfer(user2.address, value1)
+
+      // Expect user2 to have 5 tokens in ERC-20 and ERC-721 terms.
+      expect(await f.contract.erc20BalanceOf(user2.address)).to.equal(value1)
+
+      expect(await f.contract.erc721BalanceOf(user2.address)).to.equal(5n)
+
+      // Begin tests to transfer to yourself
+
+      const user2ERC20BalanceBefore = await f.contract.erc20BalanceOf(
+        user2.address,
+      )
+      const user2ERC721BalanceBefore = await f.contract.erc721BalanceOf(
+        user2.address,
+      )
+
+      // Transfer 5 tokens from user2 to user2.
+      const value2 = 5n * f.deployConfig.units
+
+      await f.contract.connect(user2).transfer(user2.address, value2)
+
+      // Expect user2 to have 5 tokens in ERC-20 and ERC-721 terms.
+      expect(await f.contract.erc20BalanceOf(user2.address)).to.equal(
+        user2ERC20BalanceBefore,
+      )
+
+      expect(await f.contract.erc721BalanceOf(user2.address)).to.equal(
+        user2ERC721BalanceBefore,
+      )
+
+      // Transfer 4.1 tokens from user2 to user2.
+      const value3 = 4n * f.deployConfig.units + f.deployConfig.units / 10n
+
+      await f.contract.connect(user2).transfer(user2.address, value3)
+
+      // Expect user2 to have 5 tokens in ERC-20 and ERC-721 terms.
+      expect(await f.contract.erc20BalanceOf(user2.address)).to.equal(
+        user2ERC20BalanceBefore,
+      )
+
+      expect(await f.contract.erc721BalanceOf(user2.address)).to.equal(
+        user2ERC721BalanceBefore,
+      )
+
+      // Transfer 4.9 tokens from user2 to user2.
+      const value4 = 5n * f.deployConfig.units - f.deployConfig.units / 10n
+
+      await f.contract.connect(user2).transfer(user2.address, value4)
+
+      // Expect user2 to have 5 tokens in ERC-20 and ERC-721 terms.
+
+      expect(await f.contract.erc20BalanceOf(user2.address)).to.equal(
+        user2ERC20BalanceBefore,
+      )
+
+      expect(await f.contract.erc721BalanceOf(user2.address)).to.equal(
+        user2ERC721BalanceBefore,
+      )
+    })
+  })
 })
