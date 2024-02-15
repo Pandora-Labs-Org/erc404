@@ -57,6 +57,8 @@ async function runTests(contract: ethers.Contract) {
   message(
     "The initial owner is exempt so these are being minted for the first time during these transfers:",
   )
+  await transfer(contract, signers[0], signers[1], 5n * 10n ** 18n / 10n)
+
   await transfer(contract, signers[0], signers[1], 1n * 10n ** 18n)
 
   await transfer(contract, signers[0], signers[1], 10n * 10n ** 18n)
@@ -67,6 +69,8 @@ async function runTests(contract: ethers.Contract) {
     "Subsequent transfers from a non-exempt address to another non-exempt address:",
   )
 
+  await transfer(contract, signers[1], signers[2], 5n * 10n ** 18n / 10n)
+
   await transfer(contract, signers[1], signers[2], 1n * 10n ** 18n)
 
   await transfer(contract, signers[1], signers[2], 10n * 10n ** 18n)
@@ -76,6 +80,8 @@ async function runTests(contract: ethers.Contract) {
   message(
     "Transferring back to the original owner who is exempt will burn the NFTs:",
   )
+
+  await transfer(contract, signers[2], signers[0], 5n * 10n ** 18n / 10n)
 
   await transfer(contract, signers[2], signers[0], 1n * 10n ** 18n)
 
@@ -112,9 +118,6 @@ async function transfer(
 
   const wholeTokens = value / 10n ** 18n
 
-  const gasUsedPerToken = gasUsed / wholeTokens
-  console.log("Effective gas used per token:", gasUsedPerToken.toLocaleString())
-
   // Print gas used in ETH
   const gasUsedEth = gasUsed * gasPrice
   console.log(
@@ -124,16 +127,21 @@ async function transfer(
     `(${weiToDollars(gasUsedEth).format()} USD)`,
   )
 
-  const effectiveGasCostPerToken = ethers.parseUnits(
-    (gasUsedEth / wholeTokens).toString(),
-    "wei",
-  )
-  console.log(
-    "Effective gas cost per token:",
-    ethers.formatEther(effectiveGasCostPerToken),
-    "ETH",
-    `(${etherPrice.multiply(Number(effectiveGasCostPerToken) / 10 ** 18).format()} USD)`,
-  )
+  if (wholeTokens > 0) {
+    const gasUsedPerToken = gasUsed / wholeTokens
+    console.log("Effective gas used per token:", gasUsedPerToken.toLocaleString())
+
+    const effectiveGasCostPerToken = ethers.parseUnits(
+      (gasUsedEth / wholeTokens).toString(),
+      "wei",
+    )
+    console.log(
+      "Effective gas cost per token:",
+      ethers.formatEther(effectiveGasCostPerToken),
+      "ETH",
+      `(${etherPrice.multiply(Number(effectiveGasCostPerToken) / 10 ** 18).format()} USD)`,
+    )
+  }
 }
 
 function weiToDollars(wei: bigint) {

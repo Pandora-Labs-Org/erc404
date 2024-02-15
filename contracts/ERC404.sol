@@ -176,7 +176,7 @@ abstract contract ERC404 is IERC404 {
 
     getApproved[id_] = spender_;
 
-    emit ERC721Approval(erc721Owner, spender_, id_);
+    emit Approval(erc721Owner, spender_, id_);
   }
 
   /// @dev Providing type(uint256).max for approval value results in an
@@ -509,7 +509,7 @@ abstract contract ERC404 is IERC404 {
       delete _ownedData[id_];
     }
 
-    emit ERC721Transfer(from_, to_, id_);
+    emit Transfer(from_, to_, id_);
   }
 
   /// @notice Internal function for ERC-20 transfers. Also handles any ERC-721 transfers that may be required.
@@ -587,24 +587,11 @@ abstract contract ERC404 is IERC404 {
       //
       // Check if the send causes the sender to lose a whole token that was represented by an ERC-721
       // due to a fractional part being transferred.
-      //
-      // To check this, look if subtracting the fractional amount from the balance causes the balance to
-      // drop below the original balance % units, which represents the number of whole tokens they started with.
-      uint256 fractionalAmount = value_ % units;
-
-      if (
-        (erc20BalanceOfSenderBefore - fractionalAmount) / units <
-        (erc20BalanceOfSenderBefore / units)
-      ) {
+      if (erc20BalanceOfSenderBefore / units - erc20BalanceOf(from_) / units > nftsToTransfer) {
         _withdrawAndStoreERC721(from_);
       }
 
-      // Check if the receive causes the receiver to gain a whole new token that should be represented
-      // by an NFT due to receiving a fractional part that completes a whole token.
-      if (
-        (erc20BalanceOfReceiverBefore + fractionalAmount) / units >
-        (erc20BalanceOfReceiverBefore / units)
-      ) {
+      if (erc20BalanceOf(to_) / units - erc20BalanceOfReceiverBefore / units > nftsToTransfer) {
         _retrieveOrMintERC721(to_);
       }
     }

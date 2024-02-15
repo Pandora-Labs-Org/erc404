@@ -471,7 +471,7 @@ describe("ERC404", function () {
       // Check for ERC721Transfer mint events (from 0x0 to the recipient)
       for (let i = 1n; i <= nftQty; i++) {
         await expect(mintTx)
-          .to.emit(f.contract, "ERC721Transfer")
+          .to.emit(f.contract, "Transfer")
           .withArgs(ethers.ZeroAddress, f.signers[1].address, i)
       }
 
@@ -529,7 +529,7 @@ describe("ERC404", function () {
 
       // Expect token id 10 to be transferred to the contract's address (popping the last NFT from the sender's stack)
       await expect(fractionalTransferTx)
-        .to.emit(f.contract, "ERC721Transfer")
+        .to.emit(f.contract, "Transfer")
         .withArgs(f.signers[1].address, ethers.ZeroAddress, 10n)
 
       // 10 tokens still minted, nothing changes there.
@@ -602,7 +602,7 @@ describe("ERC404", function () {
           fractionalValueToTransferERC20,
         )
       expect(regainFullTokenTx)
-        .to.emit(f.contract, "ERC721Transfer")
+        .to.emit(f.contract, "Transfer")
         .withArgs(ethers.ZeroAddress, f.signers[1].address, 9n)
 
       // Original sender's ERC20 balance should be 10 * units
@@ -906,7 +906,7 @@ describe("ERC404", function () {
                 await f2.mockValidERC721Receiver.getAddress(),
                 tokenId,
               ),
-          ).to.emit(f.contract, "ERC721Transfer")
+          ).to.emit(f.contract, "Transfer")
         })
       })
 
@@ -1433,7 +1433,22 @@ describe("ERC404", function () {
       ).to.be.revertedWithCustomError(f.contract, "InvalidRecipient")
     })
 
-    // TODO more tests needed here, including testing that approvals work.
+    it("Handles fractional balance changes on self-send correctly", async function () {
+      const f = await loadFixture(deployExampleERC404)
+
+      // Send 1.5 tokens to address
+      await f.contract
+        .connect(f.signers[0])
+        .transfer(f.signers[1].address, 15n * f.deployConfig.units / 10n)
+
+      // Send .5 tokens to self
+      await f.contract
+        .connect(f.signers[1])
+        .transfer(f.signers[1].address, 5n * f.deployConfig.units / 10n)
+
+      expect(await f.contract.erc721BalanceOf(f.signers[1].address)).to.eq(1n)
+      expect(await f.contract.erc20BalanceOf(f.signers[1].address)).to.eq(15n * f.deployConfig.units / 10n)
+    })
   })
 
   describe("#setERC721TransferExempt", function () {
@@ -1941,7 +1956,7 @@ describe("ERC404", function () {
         ).to.equal(0n)
 
         await expect(erc721ApprovalTx)
-          .to.emit(f.contract, "ERC721Approval")
+          .to.emit(f.contract, "Approval")
           .withArgs(f.signers[0].address, f.signers[1].address, 1n)
       })
 

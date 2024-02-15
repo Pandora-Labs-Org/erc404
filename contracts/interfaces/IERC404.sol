@@ -10,13 +10,13 @@ interface IERC404 is IERC165 {
     address indexed operator,
     bool approved
   );
-  event ERC721Approval(
+  event Approval(
     address indexed owner,
     address indexed spender,
     uint256 indexed id
   );
   event ERC20Transfer(address indexed from, address indexed to, uint256 amount);
-  event ERC721Transfer(
+  event Transfer(
     address indexed from,
     address indexed to,
     uint256 indexed id
