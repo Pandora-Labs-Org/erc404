@@ -3,7 +3,7 @@ import { time, loadFixture } from "@nomicfoundation/hardhat-network-helpers"
 import { ethers, network } from "hardhat"
 
 describe("ERC404UniswapV3Exempt", function () {
-  async function deployERC404ExampleC() {
+  async function deployERC404ExampleUniswapV3() {
     const signers = await ethers.getSigners()
 
     // Deploy Uniswap v2 factory.
@@ -38,7 +38,7 @@ describe("ERC404UniswapV3Exempt", function () {
 
     // Deploy the token.
 
-    const factory = await ethers.getContractFactory("ERC404ExampleC")
+    const factory = await ethers.getContractFactory("ERC404ExampleUniswapV3")
 
     const name = "ExampleC"
     const symbol = "EX-C"
@@ -93,7 +93,7 @@ describe("ERC404UniswapV3Exempt", function () {
 
   describe("#constructor", function () {
     it("Adds the Uniswap Swap Router to the ERC-721 transfer exempt list", async function () {
-      const f = await loadFixture(deployERC404ExampleC)
+      const f = await loadFixture(deployERC404ExampleUniswapV3)
 
       const uniswapV3RouterContractAddress =
         await f.deployConfig.uniswapV3RouterContract.getAddress()
@@ -108,7 +108,7 @@ describe("ERC404UniswapV3Exempt", function () {
     })
 
     it("Adds the Uniswap v3 Pool addresses for all fee tiers for this token + WETH to the ERC-721 transfer exempt list", async function () {
-      const f = await loadFixture(deployERC404ExampleC)
+      const f = await loadFixture(deployERC404ExampleUniswapV3)
 
       // Check all fee tiers.
       for (const feeTier of f.feeTiers) {

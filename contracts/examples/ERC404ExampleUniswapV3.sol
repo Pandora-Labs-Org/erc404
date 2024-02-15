@@ -6,7 +6,7 @@ import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {ERC404} from "../ERC404.sol";
 import {ERC404UniswapV3Exempt} from "../extensions/ERC404UniswapV3Exempt.sol";
 
-contract ERC404ExampleC is Ownable, ERC404, ERC404UniswapV3Exempt {
+contract ERC404ExampleUniswapV3 is Ownable, ERC404, ERC404UniswapV3Exempt {
   constructor(
     string memory name_,
     string memory symbol_,
