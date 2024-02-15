@@ -125,6 +125,10 @@ abstract contract ERC404 is IERC404 {
     return _storedERC721Ids.length();
   }
 
+  function isValidValueOrId(uint256 valueOrId) internal view returns (bool) {
+    return valueOrId <= _minted && valueOrId > 0;
+}
+
   /// @notice tokenURI must be implemented by child contract
   function tokenURI(uint256 id_) public view virtual returns (string memory);
 
@@ -138,7 +142,7 @@ abstract contract ERC404 is IERC404 {
   ) public virtual returns (bool) {
     // The ERC-721 tokens are 1-indexed, so 0 is not a valid id and indicates that
     // operator is attempting to set the ERC-20 allowance to 0.
-    if (valueOrId_ <= _minted && valueOrId_ > 0) {
+     if (isValidValueOrId(valueOrId_)) {
       // Intention is to approve as ERC-721 token (id).
       uint256 id = valueOrId_;
       address erc721Owner = _getOwnerOf(id);
