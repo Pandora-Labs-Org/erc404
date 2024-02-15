@@ -34,10 +34,10 @@ abstract contract ERC404 is IERC404 {
   uint256 public minted;
 
   /// @dev Initial chain id for EIP-2612 support
-  uint256 internal immutable INITIAL_CHAIN_ID;
+  uint256 internal immutable _INITIAL_CHAIN_ID;
 
   /// @dev Initial domain separator for EIP-2612 support
-  bytes32 internal immutable INITIAL_DOMAIN_SEPARATOR;
+  bytes32 internal immutable _INITIAL_DOMAIN_SEPARATOR;
 
   /// @dev Balance of user in ERC-20 representation
   mapping(address => uint256) public balanceOf;
@@ -70,7 +70,7 @@ abstract contract ERC404 is IERC404 {
   uint256 private constant _BITMASK_OWNED_INDEX = ((1 << 96) - 1) << 160;
 
   /// @dev Constant for token id encoding
-  uint256 public constant _ID_ENCODING_PREFIX = 1 << 255;
+  uint256 public constant ID_ENCODING_PREFIX = 1 << 255;
 
   constructor(string memory name_, string memory symbol_, uint8 decimals_) {
     name = name_;
@@ -84,8 +84,8 @@ abstract contract ERC404 is IERC404 {
     units = 10 ** decimals;
 
     // EIP-2612 initialization
-    INITIAL_CHAIN_ID = block.chainid;
-    INITIAL_DOMAIN_SEPARATOR = _computeDomainSeparator();
+    _INITIAL_CHAIN_ID = block.chainid;
+    _INITIAL_DOMAIN_SEPARATOR = _computeDomainSeparator();
   }
 
   /// @notice Function to find owner of a given ERC-721 token
@@ -95,7 +95,7 @@ abstract contract ERC404 is IERC404 {
     erc721Owner = _getOwnerOf(id_);
 
     // If the id_ is beyond the range of minted tokens, is 0, or the token is not owned by anyone, revert.
-    if (id_ <= _ID_ENCODING_PREFIX || erc721Owner == address(0)) {
+    if (id_ <= ID_ENCODING_PREFIX || erc721Owner == address(0)) {
       revert NotFound();
     }
   }
@@ -160,7 +160,7 @@ abstract contract ERC404 is IERC404 {
   ) public virtual returns (bool) {
     // The ERC-721 tokens are 1-indexed, so 0 is not a valid id and indicates that
     // operator is attempting to set the ERC-20 allowance to 0.
-    if (valueOrId_ > _ID_ENCODING_PREFIX && valueOrId_ != type(uint256).max) {
+    if (valueOrId_ > ID_ENCODING_PREFIX && valueOrId_ != type(uint256).max) {
       erc721Approve(spender_, valueOrId_);
     } else {
       return erc20Approve(spender_, valueOrId_);
@@ -221,7 +221,7 @@ abstract contract ERC404 is IERC404 {
     address to_,
     uint256 valueOrId_
   ) public virtual returns (bool) {
-    if (valueOrId_ > _ID_ENCODING_PREFIX) {
+    if (valueOrId_ > ID_ENCODING_PREFIX) {
       erc721TransferFrom(from_, to_, valueOrId_);
     } else {
       // Intention is to transfer as ERC-20 token (value).
@@ -336,7 +336,7 @@ abstract contract ERC404 is IERC404 {
     uint256 id_,
     bytes memory data_
   ) public virtual {
-    if (id_ <= _ID_ENCODING_PREFIX) {
+    if (id_ <= ID_ENCODING_PREFIX) {
       revert InvalidId();
     }
 
@@ -367,7 +367,7 @@ abstract contract ERC404 is IERC404 {
       revert PermitDeadlineExpired();
     }
 
-    if (value_ > _ID_ENCODING_PREFIX && value_ != type(uint256).max) {
+    if (value_ > ID_ENCODING_PREFIX && value_ != type(uint256).max) {
       revert InvalidApproval();
     }
 
@@ -413,8 +413,8 @@ abstract contract ERC404 is IERC404 {
   /// @notice Returns domain initial domain separator, or recomputes if chain id is not equal to initial chain id
   function DOMAIN_SEPARATOR() public view virtual returns (bytes32) {
     return
-      block.chainid == INITIAL_CHAIN_ID
-        ? INITIAL_DOMAIN_SEPARATOR
+      block.chainid == _INITIAL_CHAIN_ID
+        ? _INITIAL_DOMAIN_SEPARATOR
         : _computeDomainSeparator();
   }
 
@@ -619,7 +619,7 @@ abstract contract ERC404 is IERC404 {
       revert InvalidRecipient();
     }
 
-    if (totalSupply + value_ > _ID_ENCODING_PREFIX) {
+    if (totalSupply + value_ > ID_ENCODING_PREFIX) {
       revert MintLimitReached();
     }
 
@@ -663,7 +663,7 @@ abstract contract ERC404 is IERC404 {
         revert MintLimitReached();
       }
 
-      id = _ID_ENCODING_PREFIX + minted;
+      id = ID_ENCODING_PREFIX + minted;
     }
 
     address erc721Owner = _getOwnerOf(id);
