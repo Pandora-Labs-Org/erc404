@@ -594,16 +594,37 @@ abstract contract ERC404 is IERC404 {
         }
       }
 
-      // If the sender's transaction changes their holding from a fractional to a non-fractional
+      // If the transfer changes either the sender or the recipient's holdings from a fractional to a non-fractional
       // amount (or vice versa), adjust ERC-721s.
-      //
-      // Check if the send causes the sender to lose a whole token that was represented by an ERC-721
+
+      // First check if the send causes the sender to lose a whole token that was represented by an ERC-721
       // due to a fractional part being transferred.
-      if (erc20BalanceOfSenderBefore / units - erc20BalanceOf(from_) / units > nftsToTransfer) {
+      //
+      // Process:
+      // Take the difference between the whole number of tokens before and after the transfer for the sender.
+      // If that difference is greater than the number of ERC-721s transferred (whole units), then there was
+      // an additional ERC-721 lost due to the fractional portion of the transfer.
+      // If this is a self-send and the before and after balances are equal (not always the case but often),
+      // then no ERC-721s will be lost here.
+      if (
+        erc20BalanceOfSenderBefore / units - erc20BalanceOf(from_) / units >
+        nftsToTransfer
+      ) {
         _withdrawAndStoreERC721(from_);
       }
 
-      if (erc20BalanceOf(to_) / units - erc20BalanceOfReceiverBefore / units > nftsToTransfer) {
+      // Then, check if the transfer causes the receiver to gain a whole new token which requires gaining
+      // an additional ERC-721.
+      //
+      // Process:
+      // Take the difference between the whole number of tokens before and after the transfer for the recipient.
+      // If that difference is greater than the number of ERC-721s transferred (whole units), then there was
+      // an additional ERC-721 gained due to the fractional portion of the transfer.
+      // Again, for self-sends where the before and after balances are equal, no ERC-721s will be gained here.
+      if (
+        erc20BalanceOf(to_) / units - erc20BalanceOfReceiverBefore / units >
+        nftsToTransfer
+      ) {
         _retrieveOrMintERC721(to_);
       }
     }
