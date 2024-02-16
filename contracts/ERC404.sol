@@ -395,7 +395,13 @@ abstract contract ERC404 is IERC404 {
       totalSupply += value_;
     } else {
       // Deduct value from sender's balance.
-      balanceOf[from_] -= value_;
+      uint256 fromBalance = balanceOf[from_];
+
+      if (fromBalance < value_) {
+        revert ERC20InsufficientBalance(from_, fromBalance, value_);
+      }
+
+      balanceOf[from_] = fromBalance - value_;
     }
 
     // Update the recipient's balance.
