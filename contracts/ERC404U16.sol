@@ -60,7 +60,7 @@ abstract contract ERC404U16 is IERC404 {
   mapping(address => uint16[]) internal _owned;
 
   /// @dev Addresses that are exempt from ERC-721 transfer, typically for gas savings (pairs, routers, etc)
-  mapping(address => bool) public erc721TransferExempt;
+  mapping(address => bool) internal _erc721TransferExempt;
 
   /// @dev EIP-2612 nonces
   mapping(address => uint256) public nonces;
@@ -273,7 +273,7 @@ abstract contract ERC404U16 is IERC404 {
       revert Unauthorized();
     }
 
-    if (erc721TransferExempt[to_]) {
+    if (erc721TransferExempt(to_)) {
       revert RecipientIsERC721TransferExempt();
     }
 
@@ -443,6 +443,13 @@ abstract contract ERC404U16 is IERC404 {
     _setERC721TransferExempt(msg.sender, state_);
   }
 
+  /// @notice Function to check if address is transfer exempt
+  function erc721TransferExempt(
+    address target_
+  ) public view virtual returns (bool) {
+    return target_ == address(0) || _erc721TransferExempt[target_];
+  }
+
   /// @notice Internal function to compute domain separator for EIP-2612 permits
   function _computeDomainSeparator() internal view virtual returns (bytes32) {
     return
@@ -542,8 +549,8 @@ abstract contract ERC404U16 is IERC404 {
     _transferERC20(from_, to_, value_);
 
     // Preload for gas savings on branches
-    bool isFromERC721TransferExempt = erc721TransferExempt[from_];
-    bool isToERC721TransferExempt = erc721TransferExempt[to_];
+    bool isFromERC721TransferExempt = erc721TransferExempt(from_);
+    bool isToERC721TransferExempt = erc721TransferExempt(to_);
 
     // Skip _withdrawAndStoreERC721 and/or _retrieveOrMintERC721 for ERC-721 transfer exempt addresses
     // 1) to save gas
@@ -623,8 +630,7 @@ abstract contract ERC404U16 is IERC404 {
   /// Handles ERC-721 exemptions.
   function _mintERC20(
     address to_,
-    uint256 value_,
-    bool mintCorrespondingERC721s_
+    uint256 value_
   ) internal virtual {
     /// You cannot mint to the zero address (you can't mint and immediately burn in the same transfer).
     if (to_ == address(0)) {
@@ -635,20 +641,7 @@ abstract contract ERC404U16 is IERC404 {
       revert MintLimitReached();
     }
 
-    _transferERC20(address(0), to_, value_);
-
-    // If mintCorrespondingERC721s_ is true, and the recipient is not ERC-721 transfer exempt,
-    // mint the corresponding ERC721s.
-    if (mintCorrespondingERC721s_ && !erc721TransferExempt[to_]) {
-      uint256 nftsToRetrieveOrMint = value_ / units;
-      for (uint256 i = 0; i < nftsToRetrieveOrMint; ) {
-        // ERC-721 exemptions handled above.
-        _retrieveOrMintERC721(to_);
-        unchecked {
-          ++i;
-        }
-      }
-    }
+    _transferERC20WithERC721(address(0), to_, value_);
   }
 
   /// @notice Internal function for ERC-721 minting and retrieval from the bank.
@@ -724,7 +717,7 @@ abstract contract ERC404U16 is IERC404 {
       _reinstateERC721Balance(target_);
     }
 
-    erc721TransferExempt[target_] = state_;
+    _erc721TransferExempt[target_] = state_;
   }
 
   /// @notice Function to reinstate balance on exemption removal

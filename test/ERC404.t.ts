@@ -185,7 +185,6 @@ describe("ERC404", function () {
       .mintERC20(
         f.deployConfig.initialMintRecipient.address,
         f.deployConfig.maxTotalSupplyERC20,
-        true,
       )
 
     return f
@@ -453,7 +452,6 @@ describe("ERC404", function () {
         .mintERC20(
           f.signers[1].address,
           f.deployConfig.maxTotalSupplyERC721 * f.deployConfig.units,
-          true,
         )
 
       // Expect the total supply to be equal to the max total supply
@@ -471,12 +469,12 @@ describe("ERC404", function () {
       const f = await loadFixture(deployMinimalERC404)
 
       // Owner mints the full supply of ERC20 tokens (with the corresponding ERC721 tokens minted as well)
+      await f.contract.setERC721TransferExempt(f.signers[1].address, true)
       await f.contract
         .connect(f.signers[0])
         .mintERC20(
           f.signers[1].address,
           f.deployConfig.maxTotalSupplyERC721 * f.deployConfig.units,
-          false,
         )
 
       // Expect the total supply to be equal to the max total supply
@@ -504,7 +502,7 @@ describe("ERC404", function () {
       // Mint 10 ERC721s
       const mintTx = await f.contract
         .connect(f.signers[0])
-        .mintERC20(f.signers[1].address, value, true)
+        .mintERC20(f.signers[1].address, value)
 
       const receipt = await mintTx.wait();
 
@@ -547,7 +545,7 @@ describe("ERC404", function () {
 
       await f.contract
         .connect(f.signers[0])
-        .mintERC20(f.signers[1].address, value, true)
+        .mintERC20(f.signers[1].address, value)
 
       expect(await f.contract.erc721TotalSupply()).to.equal(10n)
 
@@ -608,7 +606,7 @@ describe("ERC404", function () {
 
       await f.contract
         .connect(f.signers[0])
-        .mintERC20(f.signers[1].address, erc20Value, true)
+        .mintERC20(f.signers[1].address, erc20Value)
 
       expect(await f.contract.erc721TotalSupply()).to.equal(10n)
 
@@ -2201,7 +2199,6 @@ describe("ERC404", function () {
         .mintERC20(
           f.signers[1].address,
           f.deployConfig.maxTotalSupplyERC721 * f.deployConfig.units,
-          true,
         )
 
       // Expect the minted count to be equal to the max total supply
@@ -2216,7 +2213,7 @@ describe("ERC404", function () {
 
       await f.contract
         .connect(f.signers[0])
-        .mintERC20(f.signers[1].address, 1n, true)
+        .mintERC20(f.signers[1].address, 1n)
 
       // Expect the mint recipient to have the full supply of ERC20 tokens
       expect(await f.contract.erc20BalanceOf(f.signers[1].address)).to.equal(
@@ -2459,6 +2456,22 @@ describe("ERC404", function () {
     })
   })
 
+  describe("#_mintERC20", function () {
+    it("Mints on partial balances", async function () {
+      const f = await loadFixture(deployMinimalERC404);
+
+      await f.contract.mintERC20(f.signers[1].address, 5n * f.deployConfig.units / 10n)
+
+      expect(await f.contract.balanceOf(f.signers[1].address)).to.eq(5n * f.deployConfig.units / 10n)
+      expect(await f.contract.erc721BalanceOf(f.signers[1].address)).to.eq(0)
+
+      await f.contract.mintERC20(f.signers[1].address, 5n * f.deployConfig.units / 10n)
+
+      expect(await f.contract.balanceOf(f.signers[1].address)).to.eq(f.deployConfig.units)
+      expect(await f.contract.erc721BalanceOf(f.signers[1].address)).to.eq(1)
+    })
+  })
+
   describe("#_retrieveOrMintERC721", function () {
     context("When the contract has no tokens in the queue", function () {
       context("Contract ERC-721 balance is 0", async function () {
@@ -2477,7 +2490,6 @@ describe("ERC404", function () {
           await f.contract.mintERC20(
             f.signers[0].address,
             f.deployConfig.units,
-            true,
           )
 
           expect(await f.contract.erc721TotalSupply()).to.equal(1n)
@@ -2500,7 +2512,6 @@ describe("ERC404", function () {
           await f.contract.mintERC20(
             f.signers[0].address,
             f.deployConfig.units,
-            true,
           )
 
           expect(await f.contract.erc721TotalSupply()).to.equal(1n)
@@ -2525,7 +2536,6 @@ describe("ERC404", function () {
           await f.contract.mintERC20(
             f.signers[0].address,
             f.deployConfig.units,
-            true,
           )
 
           expect(await f.contract.erc721TotalSupply()).to.equal(2n)
