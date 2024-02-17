@@ -167,5 +167,13 @@ describe("ERC404UniswapV3Exempt", function () {
         ).to.equal(true)
       }
     })
+
+    it.skip("Reverts if WETH9 address doesn't match between the v3 router and the nf position manager", async function () {
+      // TODO
+    })
+
+    it.skip("Reverts if the factory address doesn't match between the v3 router and the nf position manager", async function () {
+      // TODO
+    })
   })
 })
