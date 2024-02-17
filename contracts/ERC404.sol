@@ -239,7 +239,7 @@ abstract contract ERC404 is IERC404 {
     address to_,
     uint256 id_
   ) public virtual {
-    // Prevent transferring tokens from 0x0.
+    // Prevent minting tokens from 0x0.
     if (from_ == address(0)) {
       revert InvalidSender();
     }
@@ -262,6 +262,9 @@ abstract contract ERC404 is IERC404 {
       revert Unauthorized();
     }
 
+    // We only need to check ERC-721 transfer exempt status for the recipient 
+    // since the sender being ERC-721 transfer exempt means they have already 
+    // had their ERC-721s stripped away during the rebalancing process.
     if (erc721TransferExempt(to_)) {
       revert RecipientIsERC721TransferExempt();
     }
@@ -279,7 +282,7 @@ abstract contract ERC404 is IERC404 {
     address to_,
     uint256 value_
   ) public virtual returns (bool) {
-    // Prevent transferring tokens from 0x0.
+    // Prevent minting tokens from 0x0.
     if (from_ == address(0)) {
       revert InvalidSender();
     }
@@ -304,7 +307,7 @@ abstract contract ERC404 is IERC404 {
   /// @notice Function for ERC-20 transfers.
   /// @dev This function assumes the operator is attempting to transfer as ERC-20
   ///      given this function is only supported on the ERC-20 interface.
-  ///      Treats even small amounts that are valid ERC-721 ids as ERC-20s.
+  ///      Treats even large amounts that are valid ERC-721 ids as ERC-20s.
   function transfer(address to_, uint256 value_) public virtual returns (bool) {
     // Prevent burning tokens to 0x0.
     if (to_ == address(0)) {
