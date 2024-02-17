@@ -349,7 +349,7 @@ abstract contract ERC404U16 is IERC404 {
     bytes memory data_
   ) public virtual {
     if (id_ <= ID_ENCODING_PREFIX) {
-      revert InvalidId();
+      revert InvalidTokenId();
     }
 
     transferFrom(from_, to_, id_);
