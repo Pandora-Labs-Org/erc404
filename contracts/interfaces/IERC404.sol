@@ -5,7 +5,7 @@ import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
 
 interface IERC404 is IERC165 {
   error NotFound();
-  error InvalidId();
+  error InvalidTokenId();
   error AlreadyExists();
   error InvalidRecipient();
   error InvalidSender();

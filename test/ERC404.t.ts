@@ -440,7 +440,7 @@ describe("ERC404", function () {
 
         await expect(
           f.contract.ownerOf(minimumValidTokenId - 1n),
-        ).to.be.revertedWithCustomError(f.contract, "InvalidId")
+        ).to.be.revertedWithCustomError(f.contract, "InvalidTokenId")
       })
 
       it("Reverts if the token ID is within the range of valid Ids, but is above 'minted', the max valid minted id", async function () {
@@ -471,7 +471,7 @@ describe("ERC404", function () {
 
         await expect(f.contract.ownerOf(maxId)).to.be.revertedWithCustomError(
           f.contract,
-          "InvalidId",
+          "InvalidTokenId",
         )
       })
 
@@ -976,7 +976,7 @@ describe("ERC404", function () {
             f.signers[1].address,
             f.deployConfig.idPrefix + 0n,
           ),
-      ).to.be.revertedWithCustomError(f.contract, "InvalidId")
+      ).to.be.revertedWithCustomError(f.contract, "InvalidTokenId")
     })
 
     it("Reverts when transferring a token id above the minted range", async function () {
@@ -992,7 +992,7 @@ describe("ERC404", function () {
             f.signers[1].address,
             tokenId,
           ),
-      ).to.be.revertedWithCustomError(f.contract, "InvalidId")
+      ).to.be.revertedWithCustomError(f.contract, "InvalidTokenId")
     })
 
     context("Recipient is a contract", function () {
@@ -1620,14 +1620,16 @@ describe("ERC404", function () {
     it("Reverts when setting the zero address", async function () {
       const f = await loadFixture(deployERC404Example)
 
-      await expect(f.contract
-        .connect(f.signers[0])
-        .setERC721TransferExempt(ethers.ZeroAddress, true)
+      await expect(
+        f.contract
+          .connect(f.signers[0])
+          .setERC721TransferExempt(ethers.ZeroAddress, true),
       ).to.be.revertedWithCustomError(f.contract, "InvalidExemption")
 
-      await expect(f.contract
-        .connect(f.signers[0])
-        .setERC721TransferExempt(ethers.ZeroAddress, false)
+      await expect(
+        f.contract
+          .connect(f.signers[0])
+          .setERC721TransferExempt(ethers.ZeroAddress, false),
       ).to.be.revertedWithCustomError(f.contract, "InvalidExemption")
     })
 
@@ -1900,44 +1902,72 @@ describe("ERC404", function () {
   })
 
   describe("#permit", function () {
-    context("Permitting ERC-721 tokens", function () {
-      it("Should revert", async function () {
-        const f = await loadFixture(
-          deployMinimalERC404WithERC20sAndERC721sMinted,
-        )
+    context(
+      "Permitting tokens in the valid ERC-721 token id range",
+      function () {
+        it("Reverts", async function () {
+          const f = await loadFixture(
+            deployMinimalERC404WithERC20sAndERC721sMinted,
+          )
 
-        const msgSender = f.signers[0]
-        const spender = f.signers[1]
+          const msgSender = f.signers[0]
+          const spender = f.signers[1]
 
-        // Confirm that the token is owned by the grantor
-        expect(await f.contract.ownerOf(f.deployConfig.idPrefix + 1n)).to.equal(
-          msgSender.address,
-        )
+          // Confirm that the token is owned by the grantor
+          expect(
+            await f.contract.ownerOf(f.deployConfig.idPrefix + 1n),
+          ).to.equal(msgSender.address)
 
-        const sig = await getPermitSignature(
-          f.contractAddress,
-          msgSender,
-          spender.address,
-          f.deployConfig.idPrefix + 1n,
-          0n,
-          1000000000000000000n,
-        )
+          const validSig = await getPermitSignature(
+            f.contractAddress,
+            msgSender,
+            spender.address,
+            // This is the highest valid ERC-20 value that can be approved (besides MAX_INT).
+            f.deployConfig.idPrefix,
+            0n,
+            1000000000000000000n,
+          )
 
-        await expect(
-          f.contract
-            .connect(msgSender)
-            .permit(
-              msgSender,
-              spender,
-              f.deployConfig.idPrefix + 1n,
-              1000000000000000000n,
-              sig.v,
-              sig.r,
-              sig.s,
-            ),
-        ).to.be.revertedWithCustomError(f.contract, "InvalidApproval")
-      })
-    })
+          await expect(
+            f.contract
+              .connect(msgSender)
+              .permit(
+                msgSender,
+                spender,
+                f.deployConfig.idPrefix,
+                1000000000000000000n,
+                validSig.v,
+                validSig.r,
+                validSig.s,
+              ),
+          ).not.to.be.reverted
+
+          const invalidSig1 = await getPermitSignature(
+            f.contractAddress,
+            msgSender,
+            spender.address,
+            // This enters into ERC-721 token id territory.
+            f.deployConfig.idPrefix + 1n,
+            0n,
+            1000000000000000000n,
+          )
+
+          await expect(
+            f.contract
+              .connect(msgSender)
+              .permit(
+                msgSender,
+                spender,
+                f.deployConfig.idPrefix + 1n,
+                1000000000000000000n,
+                invalidSig1.v,
+                invalidSig1.r,
+                invalidSig1.s,
+              ),
+          ).to.be.revertedWithCustomError(f.contract, "InvalidApproval")
+        })
+      },
+    )
 
     context("Permitting ERC-20 tokens", function () {
       it("Should revert when 0x0 spender", async function () {
