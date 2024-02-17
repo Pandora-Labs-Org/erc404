@@ -94,9 +94,8 @@ abstract contract ERC404 is IERC404 {
   ) public view virtual returns (address erc721Owner) {
     erc721Owner = _getOwnerOf(id_);
 
-    // If the id_ is beyond the range of minted tokens, is 0, or the token is not owned by anyone, revert.
-    if (id_ <= ID_ENCODING_PREFIX || id_ == type(uint256).max) {
-      revert InvalidId();
+    if (!_isValidTokenId(id_)) {
+      revert InvalidTokenId();
     }
 
     if (erc721Owner == address(0)) {
@@ -155,16 +154,15 @@ abstract contract ERC404 is IERC404 {
   function tokenURI(uint256 id_) public view virtual returns (string memory);
 
   /// @notice Function for token approvals
-  /// @dev This function assumes the operator is attempting to approve an ERC-721
-  ///      if valueOrId is less than the minted count. Unlike setApprovalForAll,
-  ///      spender_ must be allowed to be 0x0 so that approval can be revoked.
+  /// @dev This function assumes the operator is attempting to approve
+  ///      an ERC-721 if valueOrId_ is a possibly valid ERC-721 token id.
+  ///      Unlike setApprovalForAll, spender_ must be allowed to be 0x0 so
+  ///      that approval can be revoked.
   function approve(
     address spender_,
     uint256 valueOrId_
   ) public virtual returns (bool) {
-    // The ERC-721 tokens are 1-indexed, so 0 is not a valid id and indicates that
-    // operator is attempting to set the ERC-20 allowance to 0.
-    if (valueOrId_ > ID_ENCODING_PREFIX && valueOrId_ != type(uint256).max) {
+    if (_isValidTokenId(valueOrId_)) {
       erc721Approve(spender_, valueOrId_);
     } else {
       return erc20Approve(spender_, valueOrId_);
@@ -199,7 +197,6 @@ abstract contract ERC404 is IERC404 {
       revert InvalidSpender();
     }
 
-    // Intention is to approve as ERC-20 token (value).
     allowance[msg.sender][spender_] = value_;
 
     emit ERC20Events.Approval(msg.sender, spender_, value_);
@@ -219,13 +216,13 @@ abstract contract ERC404 is IERC404 {
 
   /// @notice Function for mixed transfers from an operator that may be different than 'from'.
   /// @dev This function assumes the operator is attempting to transfer an ERC-721
-  ///      if valueOrId is less than or equal to current max id.
+  ///      if valueOrId is a possible valid token id.
   function transferFrom(
     address from_,
     address to_,
     uint256 valueOrId_
   ) public virtual returns (bool) {
-    if (valueOrId_ > ID_ENCODING_PREFIX) {
+    if (_isValidTokenId(valueOrId_)) {
       erc721TransferFrom(from_, to_, valueOrId_);
     } else {
       // Intention is to transfer as ERC-20 token (value).
@@ -236,13 +233,13 @@ abstract contract ERC404 is IERC404 {
   }
 
   /// @notice Function for ERC-721 transfers from.
-  /// @dev This function is recommended for ERC721 transfers
+  /// @dev This function is recommended for ERC721 transfers.
   function erc721TransferFrom(
     address from_,
     address to_,
     uint256 id_
   ) public virtual {
-    // Prevent transferring tokens from 0x0.
+    // Prevent minting tokens from 0x0.
     if (from_ == address(0)) {
       revert InvalidSender();
     }
@@ -265,6 +262,9 @@ abstract contract ERC404 is IERC404 {
       revert Unauthorized();
     }
 
+    // We only need to check ERC-721 transfer exempt status for the recipient 
+    // since the sender being ERC-721 transfer exempt means they have already 
+    // had their ERC-721s stripped away during the rebalancing process.
     if (erc721TransferExempt(to_)) {
       revert RecipientIsERC721TransferExempt();
     }
@@ -282,7 +282,7 @@ abstract contract ERC404 is IERC404 {
     address to_,
     uint256 value_
   ) public virtual returns (bool) {
-    // Prevent transferring tokens from 0x0.
+    // Prevent minting tokens from 0x0.
     if (from_ == address(0)) {
       revert InvalidSender();
     }
@@ -292,7 +292,6 @@ abstract contract ERC404 is IERC404 {
       revert InvalidRecipient();
     }
 
-    // Intention is to transfer as ERC-20 token (value).
     uint256 allowed = allowance[from_][msg.sender];
 
     // Check that the operator has sufficient allowance.
@@ -300,7 +299,7 @@ abstract contract ERC404 is IERC404 {
       allowance[from_][msg.sender] = allowed - value_;
     }
 
-    // Transferring ERC-20s directly requires the _transfer function.
+    // Transferring ERC-20s directly requires the _transferERC20WithERC721 function.
     // Handles ERC-721 exemptions internally.
     return _transferERC20WithERC721(from_, to_, value_);
   }
@@ -308,14 +307,14 @@ abstract contract ERC404 is IERC404 {
   /// @notice Function for ERC-20 transfers.
   /// @dev This function assumes the operator is attempting to transfer as ERC-20
   ///      given this function is only supported on the ERC-20 interface.
-  ///      Treats even small amounts that are valid ERC-721 ids as ERC-20s.
+  ///      Treats even large amounts that are valid ERC-721 ids as ERC-20s.
   function transfer(address to_, uint256 value_) public virtual returns (bool) {
     // Prevent burning tokens to 0x0.
     if (to_ == address(0)) {
       revert InvalidRecipient();
     }
 
-    // Transferring ERC-20s directly requires the _transfer function.
+    // Transferring ERC-20s directly requires the _transferERC20WithERC721 function.
     // Handles ERC-721 exemptions internally.
     return _transferERC20WithERC721(msg.sender, to_, value_);
   }
@@ -340,8 +339,8 @@ abstract contract ERC404 is IERC404 {
     uint256 id_,
     bytes memory data_
   ) public virtual {
-    if (id_ <= ID_ENCODING_PREFIX) {
-      revert InvalidId();
+    if (!_isValidTokenId(id_)) {
+      revert InvalidTokenId();
     }
 
     transferFrom(from_, to_, id_);
@@ -355,7 +354,7 @@ abstract contract ERC404 is IERC404 {
     }
   }
 
-  /// @notice Function for EIP-2612 permits
+  /// @notice Function for EIP-2612 permits (ERC-20 only).
   /// @dev Providing type(uint256).max for permit value results in an
   ///      unlimited approval that is not deducted from on transfers.
   function permit(
@@ -371,7 +370,9 @@ abstract contract ERC404 is IERC404 {
       revert PermitDeadlineExpired();
     }
 
-    if (value_ > ID_ENCODING_PREFIX && value_ != type(uint256).max) {
+    // permit cannot be used for ERC-721 token approvals, so ensure
+    // the value does not fall within the valid range of ERC-721 token ids.
+    if (_isValidTokenId(value_)) {
       revert InvalidApproval();
     }
 
@@ -440,6 +441,13 @@ abstract contract ERC404 is IERC404 {
     address target_
   ) public view virtual returns (bool) {
     return target_ == address(0) || _erc721TransferExempt[target_];
+  }
+
+  /// @notice For a token token id to be considered valid, it just needs
+  ///         to fall within the range of possible token ids, it does not
+  ///         necessarily have to be minted yet.
+  function _isValidTokenId(uint256 id_) internal view returns (bool) {
+    return id_ > ID_ENCODING_PREFIX && id_ != type(uint256).max;
   }
 
   /// @notice Internal function to compute domain separator for EIP-2612 permits
