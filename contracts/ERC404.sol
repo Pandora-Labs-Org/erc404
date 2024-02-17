@@ -637,10 +637,7 @@ abstract contract ERC404 is IERC404 {
   ///      If mintCorrespondingERC721s_ is true, and the recipient is not ERC-721 exempt, it will
   ///      also mint the corresponding ERC721s.
   /// Handles ERC-721 exemptions.
-  function _mintERC20(
-    address to_,
-    uint256 value_
-  ) internal virtual {
+  function _mintERC20(address to_, uint256 value_) internal virtual {
     /// You cannot mint to the zero address (you can't mint and immediately burn in the same transfer).
     if (to_ == address(0)) {
       revert InvalidRecipient();
@@ -717,6 +714,10 @@ abstract contract ERC404 is IERC404 {
     address target_,
     bool state_
   ) internal virtual {
+    if (target_ == address(0)) {
+      revert InvalidExemption();
+    }
+
     // Adjust the ERC721 balances of the target to respect exemption rules.
     // Despite this logic, it is still recommended practice to exempt prior to the target
     // having an active balance.

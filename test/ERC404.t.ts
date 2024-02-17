@@ -1543,6 +1543,20 @@ describe("ERC404", function () {
       ).to.equal(false)
     })
 
+    it("Reverts when setting the zero address", async function () {
+      const f = await loadFixture(deployERC404Example)
+
+      await expect(f.contract
+        .connect(f.signers[0])
+        .setERC721TransferExempt(ethers.ZeroAddress, true)
+      ).to.be.revertedWithCustomError(f.contract, "InvalidExemption")
+
+      await expect(f.contract
+        .connect(f.signers[0])
+        .setERC721TransferExempt(ethers.ZeroAddress, false)
+      ).to.be.revertedWithCustomError(f.contract, "InvalidExemption")
+    })
+
     it("Rebalances ERC721 tokens held by the target", async function () {
       const f = await loadFixture(deployERC404Example)
 

@@ -21,6 +21,7 @@ interface IERC404 is IERC165 {
   error InvalidApproval();
   error OwnedIndexOverflow();
   error MintLimitReached();
+  error InvalidExemption();
 
   function name() external view returns (string memory);
   function symbol() external view returns (string memory);

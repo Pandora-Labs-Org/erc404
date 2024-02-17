@@ -8,7 +8,7 @@ import {PackedDoubleEndedQueue} from "./lib/PackedDoubleEndedQueue.sol";
 import {ERC721Events} from "./lib/ERC721Events.sol";
 import {ERC20Events} from "./lib/ERC20Events.sol";
 
-/// @dev This is an optimized ERC404 implementation designed to support smaller collections, 
+/// @dev This is an optimized ERC404 implementation designed to support smaller collections,
 ///      with id's up to a maximum of 65535.
 abstract contract ERC404U16 is IERC404 {
   using PackedDoubleEndedQueue for PackedDoubleEndedQueue.Uint16Deque;
@@ -107,7 +107,7 @@ abstract contract ERC404U16 is IERC404 {
   ) public view virtual returns (uint256[] memory) {
     uint256[] memory ownedAsU256 = new uint256[](_owned[owner_].length);
 
-    for (uint256 i = 0; i < _owned[owner_].length;) {
+    for (uint256 i = 0; i < _owned[owner_].length; ) {
       ownedAsU256[i] = ID_ENCODING_PREFIX + _owned[owner_][i];
 
       unchecked {
@@ -506,7 +506,8 @@ abstract contract ERC404U16 is IERC404 {
       // On transfer of an NFT, any previous approval is reset.
       delete getApproved[id_];
 
-      uint256 updatedId = ID_ENCODING_PREFIX + _owned[from_][_owned[from_].length - 1];
+      uint256 updatedId = ID_ENCODING_PREFIX +
+        _owned[from_][_owned[from_].length - 1];
       if (updatedId != id_) {
         uint256 updatedIndex = _getOwnedIndex(id_);
         // update _owned for sender
@@ -611,11 +612,17 @@ abstract contract ERC404U16 is IERC404 {
       //
       // Check if the send causes the sender to lose a whole token that was represented by an ERC-721
       // due to a fractional part being transferred.
-      if (erc20BalanceOfSenderBefore / units - erc20BalanceOf(from_) / units > nftsToTransfer) {
+      if (
+        erc20BalanceOfSenderBefore / units - erc20BalanceOf(from_) / units >
+        nftsToTransfer
+      ) {
         _withdrawAndStoreERC721(from_);
       }
 
-      if (erc20BalanceOf(to_) / units - erc20BalanceOfReceiverBefore / units > nftsToTransfer) {
+      if (
+        erc20BalanceOf(to_) / units - erc20BalanceOfReceiverBefore / units >
+        nftsToTransfer
+      ) {
         _retrieveOrMintERC721(to_);
       }
     }
@@ -628,10 +635,7 @@ abstract contract ERC404U16 is IERC404 {
   ///      If mintCorrespondingERC721s_ is true, and the recipient is not ERC-721 exempt, it will
   ///      also mint the corresponding ERC721s.
   /// Handles ERC-721 exemptions.
-  function _mintERC20(
-    address to_,
-    uint256 value_
-  ) internal virtual {
+  function _mintERC20(address to_, uint256 value_) internal virtual {
     /// You cannot mint to the zero address (you can't mint and immediately burn in the same transfer).
     if (to_ == address(0)) {
       revert InvalidRecipient();
@@ -708,6 +712,10 @@ abstract contract ERC404U16 is IERC404 {
     address target_,
     bool state_
   ) internal virtual {
+    if (target_ == address(0)) {
+      revert InvalidExemption();
+    }
+
     // Adjust the ERC721 balances of the target to respect exemption rules.
     // Despite this logic, it is still recommended practice to exempt prior to the target
     // having an active balance.
