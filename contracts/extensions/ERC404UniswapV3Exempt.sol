@@ -5,13 +5,33 @@ import {ERC404} from "../ERC404.sol";
 import {IPeripheryImmutableState} from "@uniswap/v3-periphery/contracts/interfaces/IPeripheryImmutableState.sol";
 
 abstract contract ERC404UniswapV3Exempt is ERC404 {
-  constructor(address uniswapV3Router_) {
+  error ERC404UniswapV3ExemptFactoryMismatch();
+  error ERC404UniswapV3ExemptWETH9Mismatch();
+
+  constructor(address uniswapV3Router_, address uniswapV3NonfungiblePositionManager_) {
     IPeripheryImmutableState uniswapV3Router = IPeripheryImmutableState(
       uniswapV3Router_
     );
 
     // Set the Uniswap v3 swap router as exempt.
     _setERC721TransferExempt(uniswapV3Router_, true);
+
+    IPeripheryImmutableState uniswapV3NonfungiblePositionManager = IPeripheryImmutableState(
+      uniswapV3NonfungiblePositionManager_
+    );
+
+    // Set the Uniswap v3 nonfungible position manager as exempt.
+    _setERC721TransferExempt(uniswapV3NonfungiblePositionManager_, true);
+
+    // Require the Uniswap v3 factory from the position manager and the swap router to be the same.
+    if (uniswapV3Router.factory() != uniswapV3NonfungiblePositionManager.factory()) {
+      revert ERC404UniswapV3ExemptFactoryMismatch();
+    }
+ 
+    // Require the Uniswap v3 WETH9 from the position manager and the swap router to be the same.
+    if (uniswapV3Router.WETH9() != uniswapV3NonfungiblePositionManager.WETH9()) {
+      revert ERC404UniswapV3ExemptWETH9Mismatch();
+    }
 
     uint24[3] memory feeTiers = [uint24(500), uint24(3_000), uint24(10_000)];
 

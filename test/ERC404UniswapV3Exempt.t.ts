@@ -6,7 +6,10 @@ describe("ERC404UniswapV3Exempt", function () {
   async function deployERC404ExampleUniswapV3() {
     const signers = await ethers.getSigners()
 
-    // Deploy Uniswap v2 factory.
+    // Deploy Uniswap v3 NFT Position Manager
+    // TODO
+
+    // Deploy Uniswap v3 factory.
     const uniswapV3FactorySource = require("@uniswap/v3-core/artifacts/contracts/UniswapV3Factory.sol/UniswapV3Factory.json")
     const uniswapV3FactoryContract = await new ethers.ContractFactory(
       uniswapV3FactorySource.abi,
@@ -24,7 +27,7 @@ describe("ERC404UniswapV3Exempt", function () {
     ).deploy()
     await wethContract.waitForDeployment()
 
-    // Deploy Uniswap v2 router.
+    // Deploy Uniswap v3 router.
     const uniswapV3Router = require("@uniswap/v3-periphery/artifacts/contracts/SwapRouter.sol/SwapRouter.json")
     const uniswapV3RouterContract = await new ethers.ContractFactory(
       uniswapV3Router.abi,
