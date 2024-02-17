@@ -4,15 +4,17 @@ pragma solidity ^0.8.20;
 import {IERC721Receiver} from "@openzeppelin/contracts/interfaces/IERC721Receiver.sol";
 import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
 import {IERC404} from "./interfaces/IERC404.sol";
-import {DoubleEndedQueue} from "./lib/DoubleEndedQueue.sol";
+import {PackedDoubleEndedQueue} from "./lib/PackedDoubleEndedQueue.sol";
 import {ERC721Events} from "./lib/ERC721Events.sol";
 import {ERC20Events} from "./lib/ERC20Events.sol";
 
-abstract contract ERC404 is IERC404 {
-  using DoubleEndedQueue for DoubleEndedQueue.Uint256Deque;
+/// @dev This is an optimized ERC404 implementation designed to support smaller collections,
+///      with id's up to a maximum of 65535.
+abstract contract ERC404U16 is IERC404 {
+  using PackedDoubleEndedQueue for PackedDoubleEndedQueue.Uint16Deque;
 
   /// @dev The queue of ERC-721 tokens stored in the contract.
-  DoubleEndedQueue.Uint256Deque private _storedERC721Ids;
+  PackedDoubleEndedQueue.Uint16Deque private _storedERC721Ids;
 
   /// @dev Token name
   string public name;
@@ -55,7 +57,7 @@ abstract contract ERC404 is IERC404 {
   mapping(uint256 => uint256) internal _ownedData;
 
   /// @dev Array of owned ids in ERC-721 representation
-  mapping(address => uint256[]) internal _owned;
+  mapping(address => uint16[]) internal _owned;
 
   /// @dev Addresses that are exempt from ERC-721 transfer, typically for gas savings (pairs, routers, etc)
   mapping(address => bool) internal _erc721TransferExempt;
@@ -95,11 +97,7 @@ abstract contract ERC404 is IERC404 {
     erc721Owner = _getOwnerOf(id_);
 
     // If the id_ is beyond the range of minted tokens, is 0, or the token is not owned by anyone, revert.
-    if (id_ <= ID_ENCODING_PREFIX || id_ == type(uint256).max) {
-      revert InvalidId();
-    }
-
-    if (erc721Owner == address(0)) {
+    if (id_ <= ID_ENCODING_PREFIX || erc721Owner == address(0)) {
       revert NotFound();
     }
   }
@@ -107,7 +105,17 @@ abstract contract ERC404 is IERC404 {
   function owned(
     address owner_
   ) public view virtual returns (uint256[] memory) {
-    return _owned[owner_];
+    uint256[] memory ownedAsU256 = new uint256[](_owned[owner_].length);
+
+    for (uint256 i = 0; i < _owned[owner_].length; ) {
+      ownedAsU256[i] = ID_ENCODING_PREFIX + _owned[owner_][i];
+
+      unchecked {
+        ++i;
+      }
+    }
+
+    return ownedAsU256;
   }
 
   function erc721BalanceOf(
@@ -141,7 +149,7 @@ abstract contract ERC404 is IERC404 {
     uint256[] memory tokensInQueue = new uint256[](count_);
 
     for (uint256 i = start_; i < start_ + count_; ) {
-      tokensInQueue[i - start_] = _storedERC721Ids.at(i);
+      tokensInQueue[i - start_] = ID_ENCODING_PREFIX + _storedERC721Ids.at(i);
 
       unchecked {
         ++i;
@@ -498,11 +506,12 @@ abstract contract ERC404 is IERC404 {
       // On transfer of an NFT, any previous approval is reset.
       delete getApproved[id_];
 
-      uint256 updatedId = _owned[from_][_owned[from_].length - 1];
+      uint256 updatedId = ID_ENCODING_PREFIX +
+        _owned[from_][_owned[from_].length - 1];
       if (updatedId != id_) {
         uint256 updatedIndex = _getOwnedIndex(id_);
         // update _owned for sender
-        _owned[from_][updatedIndex] = updatedId;
+        _owned[from_][updatedIndex] = uint16(updatedId);
         // update index for the moved id
         _setOwnedIndex(updatedId, updatedIndex);
       }
@@ -517,7 +526,7 @@ abstract contract ERC404 is IERC404 {
       // Update owner of the token to the new owner.
       _setOwnerOf(id_, to_);
       // Push token onto the new owner's stack.
-      _owned[to_].push(id_);
+      _owned[to_].push(uint16(id_));
       // Update index for new owner's stack.
       _setOwnedIndex(id_, _owned[to_].length - 1);
     } else {
@@ -591,25 +600,18 @@ abstract contract ERC404 is IERC404 {
       for (uint256 i = 0; i < nftsToTransfer; ) {
         // Pop from sender's ERC-721 stack and transfer them (LIFO)
         uint256 indexOfLastToken = _owned[from_].length - 1;
-        uint256 tokenId = _owned[from_][indexOfLastToken];
+        uint256 tokenId = ID_ENCODING_PREFIX + _owned[from_][indexOfLastToken];
         _transferERC721(from_, to_, tokenId);
         unchecked {
           ++i;
         }
       }
 
-      // If the transfer changes either the sender or the recipient's holdings from a fractional to a non-fractional
+      // If the sender's transaction changes their holding from a fractional to a non-fractional
       // amount (or vice versa), adjust ERC-721s.
-
-      // First check if the send causes the sender to lose a whole token that was represented by an ERC-721
-      // due to a fractional part being transferred.
       //
-      // Process:
-      // Take the difference between the whole number of tokens before and after the transfer for the sender.
-      // If that difference is greater than the number of ERC-721s transferred (whole units), then there was
-      // an additional ERC-721 lost due to the fractional portion of the transfer.
-      // If this is a self-send and the before and after balances are equal (not always the case but often),
-      // then no ERC-721s will be lost here.
+      // Check if the send causes the sender to lose a whole token that was represented by an ERC-721
+      // due to a fractional part being transferred.
       if (
         erc20BalanceOfSenderBefore / units - erc20BalanceOf(from_) / units >
         nftsToTransfer
@@ -617,14 +619,6 @@ abstract contract ERC404 is IERC404 {
         _withdrawAndStoreERC721(from_);
       }
 
-      // Then, check if the transfer causes the receiver to gain a whole new token which requires gaining
-      // an additional ERC-721.
-      //
-      // Process:
-      // Take the difference between the whole number of tokens before and after the transfer for the recipient.
-      // If that difference is greater than the number of ERC-721s transferred (whole units), then there was
-      // an additional ERC-721 gained due to the fractional portion of the transfer.
-      // Again, for self-sends where the before and after balances are equal, no ERC-721s will be gained here.
       if (
         erc20BalanceOf(to_) / units - erc20BalanceOfReceiverBefore / units >
         nftsToTransfer
@@ -668,7 +662,7 @@ abstract contract ERC404 is IERC404 {
     if (!_storedERC721Ids.empty()) {
       // If there are any tokens in the bank, use those first.
       // Pop off the end of the queue (FIFO).
-      id = _storedERC721Ids.popBack();
+      id = ID_ENCODING_PREFIX + _storedERC721Ids.popBack();
     } else {
       // Otherwise, mint a new token, should not be able to go over the total fractional supply.
       ++minted;
@@ -703,14 +697,14 @@ abstract contract ERC404 is IERC404 {
     }
 
     // Retrieve the latest token added to the owner's stack (LIFO).
-    uint256 id = _owned[from_][_owned[from_].length - 1];
+    uint256 id = ID_ENCODING_PREFIX + _owned[from_][_owned[from_].length - 1];
 
     // Transfer to 0x0.
     // Does not handle ERC-721 exemptions.
     _transferERC721(from_, address(0), id);
 
     // Record the token in the contract's bank queue.
-    _storedERC721Ids.pushFront(id);
+    _storedERC721Ids.pushFront(uint16(id));
   }
 
   /// @notice Initialization function to set pairs / etc, saving gas by avoiding mint / burn on unnecessary targets
