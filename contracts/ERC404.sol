@@ -95,7 +95,11 @@ abstract contract ERC404 is IERC404 {
     erc721Owner = _getOwnerOf(id_);
 
     // If the id_ is beyond the range of minted tokens, is 0, or the token is not owned by anyone, revert.
-    if (id_ <= ID_ENCODING_PREFIX || erc721Owner == address(0)) {
+    if (id_ <= ID_ENCODING_PREFIX || id_ == type(uint256).max) {
+      revert InvalidId();
+    }
+
+    if (erc721Owner == address(0)) {
       revert NotFound();
     }
   }
