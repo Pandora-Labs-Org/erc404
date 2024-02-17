@@ -57,6 +57,24 @@ To use:
 2. Update the simulation parameters: `tokenA` (your token address), `tokenB` (typically WETH, or `0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2`), and set the fee tier to either 500, 3000 (for 0.3%), or 10000 (for 1%).
 3. Run Simulate, and then expand the Input/Output section. The output on the right column will show the derived pool address.
 
+## Useful Deployment Addresses
+
+```
+WETH: 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2
+
+# Uniswap v2
+UniswapV2Router02: 0x7a250d5630b4cf539739df2c5dacb4c659f2488d
+UniswapV2Factory: 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f
+
+# Uniswap v3
+UniswapV3Factory: 0x1F98431c8aD98523631AE4a59f267346ea31F984
+UniversalRouter: 0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD
+UniversalRouter 2: 0xEf1c6E67703c7BD7107eed8303Fbe6EC2554BF6B
+SwapRouter: 0xE592427A0AEce92De3Edee1F18E0157C05861564
+SwapRouter02: 0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45
+NonfungiblePositionManager: 0xc36442b4a4522e871399cd717abdd847ab11fe88
+```
+
 ## License
 
 This software is released under the MIT License.
