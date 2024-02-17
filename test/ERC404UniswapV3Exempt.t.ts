@@ -109,7 +109,7 @@ describe("ERC404UniswapV3Exempt", function () {
   }
 
   describe("#constructor", function () {
-    it("Adds the Uniswap Nonfungible Position Manager to  the ERC-721 transfer exempt list", async function () {
+    it("Adds the Uniswap v3 nonfungible position manager to the ERC-721 transfer exempt list", async function () {
       const f = await loadFixture(deployERC404ExampleUniswapV3)
 
       const uniswapV3NonfungiblePositionManagerContractAddress =
@@ -172,7 +172,7 @@ describe("ERC404UniswapV3Exempt", function () {
       // TODO
     })
 
-    it.skip("Reverts if the factory address doesn't match between the v3 router and the nf position manager", async function () {
+    it.skip("Reverts if the factory address doesn't match between the v3 router and the v3 nonfungible position manager", async function () {
       // TODO
     })
   })
