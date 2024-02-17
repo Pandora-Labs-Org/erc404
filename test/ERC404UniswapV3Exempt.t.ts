@@ -6,9 +6,6 @@ describe("ERC404UniswapV3Exempt", function () {
   async function deployERC404ExampleUniswapV3() {
     const signers = await ethers.getSigners()
 
-    // Deploy Uniswap v3 NFT Position Manager
-    // TODO
-
     // Deploy Uniswap v3 factory.
     const uniswapV3FactorySource = require("@uniswap/v3-core/artifacts/contracts/UniswapV3Factory.sol/UniswapV3Factory.json")
     const uniswapV3FactoryContract = await new ethers.ContractFactory(
@@ -26,6 +23,21 @@ describe("ERC404UniswapV3Exempt", function () {
       signers[0],
     ).deploy()
     await wethContract.waitForDeployment()
+
+    // Deploy Uniswap v3 NFT Position Manager
+    const uniswapV3NonfungiblePositionManagerSource = require("@uniswap/v3-periphery/artifacts/contracts/NonfungiblePositionManager.sol/NonfungiblePositionManager.json")
+    const uniswapV3NonfungiblePositionManagerContract =
+      await new ethers.ContractFactory(
+        uniswapV3NonfungiblePositionManagerSource.abi,
+        uniswapV3NonfungiblePositionManagerSource.bytecode,
+        signers[0],
+      ).deploy(
+        await uniswapV3FactoryContract.getAddress(),
+        await wethContract.getAddress(),
+        // Skip the token descriptor address (we don't really need this for testing).
+        ethers.ZeroAddress,
+      )
+    await uniswapV3NonfungiblePositionManagerContract.waitForDeployment()
 
     // Deploy Uniswap v3 router.
     const uniswapV3Router = require("@uniswap/v3-periphery/artifacts/contracts/SwapRouter.sol/SwapRouter.json")
@@ -60,6 +72,7 @@ describe("ERC404UniswapV3Exempt", function () {
       initialOwner.address,
       initialMintRecipient.address,
       await uniswapV3RouterContract.getAddress(),
+      await uniswapV3NonfungiblePositionManagerContract.getAddress(),
     )
     await contract.waitForDeployment()
     const contractAddress = await contract.getAddress()
@@ -87,6 +100,7 @@ describe("ERC404UniswapV3Exempt", function () {
         initialMintRecipient,
         uniswapV3RouterContract,
         uniswapV3FactoryContract,
+        uniswapV3NonfungiblePositionManagerContract,
         wethContract,
       },
       randomAddresses,
@@ -95,7 +109,24 @@ describe("ERC404UniswapV3Exempt", function () {
   }
 
   describe("#constructor", function () {
-    it("Adds the Uniswap Swap Router to the ERC-721 transfer exempt list", async function () {
+    it("Adds the Uniswap Nonfungible Position Manager to  the ERC-721 transfer exempt list", async function () {
+      const f = await loadFixture(deployERC404ExampleUniswapV3)
+
+      const uniswapV3NonfungiblePositionManagerContractAddress =
+        await f.deployConfig.uniswapV3NonfungiblePositionManagerContract.getAddress()
+
+      expect(uniswapV3NonfungiblePositionManagerContractAddress).to.not.eq(
+        ethers.ZeroAddress,
+      )
+
+      expect(
+        await f.contract.erc721TransferExempt(
+          await f.deployConfig.uniswapV3NonfungiblePositionManagerContract.getAddress(),
+        ),
+      ).to.equal(true)
+    })
+
+    it("Adds the Uniswap v3 Swap Router to the ERC-721 transfer exempt list", async function () {
       const f = await loadFixture(deployERC404ExampleUniswapV3)
 
       const uniswapV3RouterContractAddress =
