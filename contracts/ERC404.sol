@@ -95,7 +95,11 @@ abstract contract ERC404 is IERC404 {
     erc721Owner = _getOwnerOf(id_);
 
     // If the id_ is beyond the range of minted tokens, is 0, or the token is not owned by anyone, revert.
-    if (id_ <= ID_ENCODING_PREFIX || erc721Owner == address(0)) {
+    if (id_ <= ID_ENCODING_PREFIX || id_ == type(uint256).max) {
+      revert InvalidId();
+    }
+
+    if (erc721Owner == address(0)) {
       revert NotFound();
     }
   }
@@ -637,10 +641,7 @@ abstract contract ERC404 is IERC404 {
   ///      If mintCorrespondingERC721s_ is true, and the recipient is not ERC-721 exempt, it will
   ///      also mint the corresponding ERC721s.
   /// Handles ERC-721 exemptions.
-  function _mintERC20(
-    address to_,
-    uint256 value_
-  ) internal virtual {
+  function _mintERC20(address to_, uint256 value_) internal virtual {
     /// You cannot mint to the zero address (you can't mint and immediately burn in the same transfer).
     if (to_ == address(0)) {
       revert InvalidRecipient();
