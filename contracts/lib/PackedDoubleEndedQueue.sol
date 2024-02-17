@@ -9,7 +9,7 @@ pragma solidity ^0.8.20;
  * FIFO queues. Storage use is optimized, and all operations are O(1) constant time. This includes {clear}, given that
  * the existing queue contents are left in storage.
  *
- * The struct is called `Uint16Deque`. And is designed for packed uint16 values, though this approach can be
+ * The struct is called `Uint16Deque`. And is designed for packed uint16 values, though this approach can be  
  * extrapolated to different implementations. This data structure can only be used in storage, and not in memory.
  *
  * ```solidity
@@ -64,13 +64,14 @@ library PackedDoubleEndedQueue {
    *
    * Reverts with {QueueEmpty} if the queue is empty.
    */
-  function popBack(Uint16Deque storage deque) internal returns (uint16 value) {
+  function popBack(
+    Uint16Deque storage deque
+  ) internal returns (uint16 value) {
     unchecked {
       uint64 backIndex = deque._endIndex;
       uint64 backSlot = deque._endSlot;
 
-      if (backIndex == deque._beginIndex && backSlot == deque._beginSlot)
-        revert QueueEmpty();
+      if (backIndex == deque._beginIndex && backSlot == deque._beginSlot) revert QueueEmpty();
 
       if (backSlot == 0) {
         --backIndex;
@@ -108,11 +109,7 @@ library PackedDoubleEndedQueue {
 
       if (frontIndex == deque._endIndex) revert QueueFull();
 
-      deque._data[frontIndex] = _setData(
-        deque._data[frontIndex],
-        frontSlot,
-        value_
-      );
+      deque._data[frontIndex] = _setData(deque._data[frontIndex], frontSlot, value_);
       deque._beginIndex = frontIndex;
       deque._beginSlot = frontSlot;
     }
@@ -131,16 +128,10 @@ library PackedDoubleEndedQueue {
     if (index_ >= length(deque) * 16) revert QueueOutOfBounds();
 
     unchecked {
-      return
-        _getEntry(
-          deque._data[
-            deque._beginIndex +
-              uint64(deque._beginSlot + (index_ % 16)) /
-              16 +
-              uint64(index_ / 16)
-          ],
-          uint64(((deque._beginSlot + index_) % 16))
-        );
+      return _getEntry(
+        deque._data[deque._beginIndex + uint64(deque._beginSlot + (index_ % 16)) / 16 + uint64(index_ / 16)], 
+        uint64(((deque._beginSlot + index_) % 16))
+      );
     }
   }
 
@@ -149,14 +140,7 @@ library PackedDoubleEndedQueue {
    */
   function length(Uint16Deque storage deque) internal view returns (uint256) {
     unchecked {
-      return
-        (16 - deque._beginSlot) +
-        deque._endSlot +
-        deque._endIndex *
-        16 -
-        deque._beginIndex *
-        16 -
-        16;
+      return (16 - deque._beginSlot) + deque._endSlot + deque._endIndex * 16 - deque._beginIndex * 16 - 16;
     }
   }
 
@@ -164,16 +148,10 @@ library PackedDoubleEndedQueue {
    * @dev Returns true if the queue is empty.
    */
   function empty(Uint16Deque storage deque) internal view returns (bool) {
-    return
-      deque._endSlot == deque._beginSlot &&
-      deque._endIndex == deque._beginIndex;
+    return deque._endSlot == deque._beginSlot && deque._endIndex == deque._beginIndex;
   }
 
-  function _setData(
-    uint256 data_,
-    uint64 slot_,
-    uint16 value
-  ) private pure returns (uint256) {
+  function _setData(uint256 data_, uint64 slot_, uint16 value) private pure returns (uint256) {
     return (data_ & (~_getSlotMask(slot_))) + (uint256(value) << (16 * slot_));
   }
 

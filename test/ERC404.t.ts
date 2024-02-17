@@ -15,7 +15,8 @@ describe("ERC404", function () {
     const maxTotalSupplyERC20 = maxTotalSupplyERC721 * units
     const initialOwner = signers[0]
     const initialMintRecipient = signers[0]
-    const idPrefix = 57896044618658097711785492504343953926634992332820282019728792003956564819968n
+    const idPrefix =
+      57896044618658097711785492504343953926634992332820282019728792003956564819968n
 
     const contract = await factory.deploy(
       name,
@@ -140,7 +141,8 @@ describe("ERC404", function () {
     const maxTotalSupplyERC20 = maxTotalSupplyERC721 * units
     const initialOwner = signers[0]
     const initialMintRecipient = signers[0]
-    const idPrefix = 57896044618658097711785492504343953926634992332820282019728792003956564819968n
+    const idPrefix =
+      57896044618658097711785492504343953926634992332820282019728792003956564819968n
 
     const contract = await factory.deploy(
       name,
@@ -185,7 +187,6 @@ describe("ERC404", function () {
       .mintERC20(
         f.deployConfig.initialMintRecipient.address,
         f.deployConfig.maxTotalSupplyERC20,
-        true,
       )
 
     return f
@@ -300,6 +301,60 @@ describe("ERC404", function () {
     }
   }
 
+  function containsERC721TransferEvent(
+    logs: any[],
+    from: string,
+    to: string,
+    id: bigint,
+  ) {
+    for (const log of logs) {
+      if (log.topics.length == 4) {
+        if (
+          log.topics[0] ==
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef" &&
+          log.topics[1] ==
+            "0x000000000000000000000000" +
+              from.substring(2, from.length).toLowerCase() &&
+          log.topics[2] ==
+            "0x000000000000000000000000" +
+              to.substring(2, to.length).toLowerCase() &&
+          log.topics[3] == "0x" + id.toString(16)
+        ) {
+          return true
+        }
+      }
+    }
+
+    return false
+  }
+
+  function containsERC721ApprovalEvent(
+    logs: any[],
+    owner: string,
+    spender: string,
+    id: bigint,
+  ) {
+    for (const log of logs) {
+      if (log.topics.length == 4) {
+        if (
+          log.topics[0] ==
+            "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925" &&
+          log.topics[1] ==
+            "0x000000000000000000000000" +
+              owner.substring(2, owner.length).toLowerCase() &&
+          log.topics[2] ==
+            "0x000000000000000000000000" +
+              spender.substring(2, spender.length).toLowerCase() &&
+          log.topics[3] == "0x" + id.toString(16)
+        ) {
+          return true
+        }
+      }
+    }
+
+    return false
+  }
+
   describe("#constructor", function () {
     it("Initializes the contract with the expected values", async function () {
       const f = await loadFixture(deployERC404Example)
@@ -372,25 +427,51 @@ describe("ERC404", function () {
 
   describe("#ownerOf", function () {
     context("Some tokens have been minted", function () {
-      it("Reverts if the token ID does not exist", async function () {
+      it("Reverts if the token ID is below the allowed range", async function () {
         const f = await loadFixture(
           deployERC404ExampleWithSomeTokensTransferredToRandomAddress,
         )
 
-        await expect(f.contract.ownerOf(11n)).to.be.revertedWithCustomError(
-          f.contract,
-          "NotFound",
+        const minimumValidTokenId = (await f.contract.ID_ENCODING_PREFIX()) + 1n
+
+        expect(await f.contract.ownerOf(minimumValidTokenId)).to.eq(
+          f.targetAddress,
         )
+
+        await expect(
+          f.contract.ownerOf(minimumValidTokenId - 1n),
+        ).to.be.revertedWithCustomError(f.contract, "InvalidId")
       })
 
-      it("Reverts if the token ID is 0", async function () {
+      it("Reverts if the token ID is within the range of valid Ids, but is above 'minted', the max valid minted id", async function () {
         const f = await loadFixture(
           deployERC404ExampleWithSomeTokensTransferredToRandomAddress,
         )
 
-        await expect(f.contract.ownerOf(0n)).to.be.revertedWithCustomError(
+        const minted = await f.contract.minted()
+
+        const mintedWithPrefix =
+          (await f.contract.ID_ENCODING_PREFIX()) + minted
+
+        expect(await f.contract.ownerOf(mintedWithPrefix)).to.eq(
+          f.targetAddress,
+        )
+
+        await expect(
+          f.contract.ownerOf(mintedWithPrefix + 1n),
+        ).to.be.revertedWithCustomError(f.contract, "NotFound")
+      })
+
+      it("Reverts when for id = MAX_INT", async function () {
+        const f = await loadFixture(
+          deployERC404ExampleWithSomeTokensTransferredToRandomAddress,
+        )
+
+        const maxId = 2n ** 256n - 1n
+
+        await expect(f.contract.ownerOf(maxId)).to.be.revertedWithCustomError(
           f.contract,
-          "NotFound",
+          "InvalidId",
         )
       })
 
@@ -403,7 +484,9 @@ describe("ERC404", function () {
 
         // Expect the owner of the token to be the recipient
         for (let i = 1n; i <= 5n; i++) {
-          expect(await f.contract.ownerOf(f.deployConfig.idPrefix + i)).to.equal(f.targetAddress)
+          expect(
+            await f.contract.ownerOf(f.deployConfig.idPrefix + i),
+          ).to.equal(f.targetAddress)
         }
       })
     })
@@ -419,7 +502,6 @@ describe("ERC404", function () {
         .mintERC20(
           f.signers[1].address,
           f.deployConfig.maxTotalSupplyERC721 * f.deployConfig.units,
-          true,
         )
 
       // Expect the total supply to be equal to the max total supply
@@ -437,12 +519,12 @@ describe("ERC404", function () {
       const f = await loadFixture(deployMinimalERC404)
 
       // Owner mints the full supply of ERC20 tokens (with the corresponding ERC721 tokens minted as well)
+      await f.contract.setERC721TransferExempt(f.signers[1].address, true)
       await f.contract
         .connect(f.signers[0])
         .mintERC20(
           f.signers[1].address,
           f.deployConfig.maxTotalSupplyERC721 * f.deployConfig.units,
-          false,
         )
 
       // Expect the total supply to be equal to the max total supply
@@ -470,18 +552,25 @@ describe("ERC404", function () {
       // Mint 10 ERC721s
       const mintTx = await f.contract
         .connect(f.signers[0])
-        .mintERC20(f.signers[1].address, value, true)
+        .mintERC20(f.signers[1].address, value)
+
+      const receipt = await mintTx.wait()
 
       // Check for ERC721Transfer mint events (from 0x0 to the recipient)
       for (let i = 1n; i <= nftQty; i++) {
-        await expect(mintTx)
-          .to.emit(f.contract, "Transfer")
-          .withArgs(ethers.ZeroAddress, f.signers[1].address, f.deployConfig.idPrefix + i)
+        expect(
+          containsERC721TransferEvent(
+            receipt.logs,
+            ethers.ZeroAddress,
+            f.signers[1].address,
+            f.deployConfig.idPrefix + i,
+          ),
+        ).to.eq(true)
       }
 
       // Check for ERC20Transfer mint events (from 0x0 to the recipient)
       await expect(mintTx)
-        .to.emit(f.contract, "ERC20Transfer")
+        .to.emit(f.contract, "Transfer")
         .withArgs(ethers.ZeroAddress, f.signers[1].address, value)
 
       // 10 NFTs should have been minted
@@ -508,7 +597,7 @@ describe("ERC404", function () {
 
       await f.contract
         .connect(f.signers[0])
-        .mintERC20(f.signers[1].address, value, true)
+        .mintERC20(f.signers[1].address, value)
 
       expect(await f.contract.erc721TotalSupply()).to.equal(10n)
 
@@ -524,7 +613,7 @@ describe("ERC404", function () {
         .transfer(f.signers[2].address, fractionalValueToTransferERC20)
 
       await expect(fractionalTransferTx)
-        .to.emit(f.contract, "ERC20Transfer")
+        .to.emit(f.contract, "Transfer")
         .withArgs(
           f.signers[1].address,
           f.signers[2].address,
@@ -532,18 +621,22 @@ describe("ERC404", function () {
         )
 
       // Expect token id 10 to be transferred to the contract's address (popping the last NFT from the sender's stack)
-      await expect(fractionalTransferTx)
-        .to.emit(f.contract, "Transfer")
-        .withArgs(f.signers[1].address, ethers.ZeroAddress, f.deployConfig.idPrefix + 10n)
+      await expect(
+        containsERC721TransferEvent(
+          (await fractionalTransferTx.wait()).logs,
+          f.signers[1].address,
+          ethers.ZeroAddress,
+          f.deployConfig.idPrefix + 10n,
+        ),
+      ).to.eq(true)
 
       // 10 tokens still minted, nothing changes there.
       expect(await f.contract.erc721TotalSupply()).to.equal(10n)
 
       // The owner of NFT 10 should be the 0x0
-      await expect(f.contract.ownerOf(f.deployConfig.idPrefix + 10n)).to.be.revertedWithCustomError(
-        f.contract,
-        "NotFound",
-      )
+      await expect(
+        f.contract.ownerOf(f.deployConfig.idPrefix + 10n),
+      ).to.be.revertedWithCustomError(f.contract, "NotFound")
 
       // The sender's NFT balance should be 9
       expect(await f.contract.erc721BalanceOf(f.signers[1].address)).to.equal(
@@ -566,7 +659,7 @@ describe("ERC404", function () {
 
       await f.contract
         .connect(f.signers[0])
-        .mintERC20(f.signers[1].address, erc20Value, true)
+        .mintERC20(f.signers[1].address, erc20Value)
 
       expect(await f.contract.erc721TotalSupply()).to.equal(10n)
 
@@ -578,10 +671,9 @@ describe("ERC404", function () {
         .transfer(f.signers[2].address, fractionalValueToTransferERC20)
 
       // The owner of NFT 10 should be the contract's address
-      await expect(f.contract.ownerOf(f.deployConfig.idPrefix + 10n)).to.be.revertedWithCustomError(
-        f.contract,
-        "NotFound",
-      )
+      await expect(
+        f.contract.ownerOf(f.deployConfig.idPrefix + 10n),
+      ).to.be.revertedWithCustomError(f.contract, "NotFound")
 
       // The sender's NFT balance should be 9
       expect(await f.contract.erc721BalanceOf(f.signers[1].address)).to.equal(
@@ -599,7 +691,7 @@ describe("ERC404", function () {
         .transfer(f.signers[1].address, fractionalValueToTransferERC20)
 
       expect(regainFullTokenTx)
-        .to.emit(f.contract, "ERC20Transfer")
+        .to.emit(f.contract, "Transfer")
         .withArgs(
           f.signers[2].address,
           f.signers[1].address,
@@ -607,7 +699,11 @@ describe("ERC404", function () {
         )
       expect(regainFullTokenTx)
         .to.emit(f.contract, "Transfer")
-        .withArgs(ethers.ZeroAddress, f.signers[1].address, f.deployConfig.idPrefix + 9n)
+        .withArgs(
+          ethers.ZeroAddress,
+          f.signers[1].address,
+          f.deployConfig.idPrefix + 9n,
+        )
 
       // Original sender's ERC20 balance should be 10 * units
       expect(await f.contract.erc20BalanceOf(f.signers[1].address)).to.equal(
@@ -615,7 +711,9 @@ describe("ERC404", function () {
       )
 
       // The owner of NFT 9 should be the original sender's address
-      expect(await f.contract.ownerOf(f.deployConfig.idPrefix + 10n)).to.equal(f.signers[1].address)
+      expect(await f.contract.ownerOf(f.deployConfig.idPrefix + 10n)).to.equal(
+        f.signers[1].address,
+      )
 
       // The sender's NFT balance should be 10
       expect(await f.contract.erc721BalanceOf(f.signers[1].address)).to.equal(
@@ -742,9 +840,7 @@ describe("ERC404", function () {
 
     context("Moving one or more full tokens", async function () {
       it("Transfers whole tokens without fractional impact correctly", async function () {
-        const f = await loadFixture(
-          deployERC404ExampleWithTokensInSecondSigner,
-        )
+        const f = await loadFixture(deployERC404ExampleWithTokensInSecondSigner)
 
         // Initial balances
         const fromBalancesBefore = await getBalances(f.contract, f.from.address)
@@ -795,9 +891,7 @@ describe("ERC404", function () {
         // - The receiver gains a whole new token (0.9 + 3.2 (3 whole, 0.2 fractional) = 4.1)
         // - The sender transfers 3 whole tokens to the receiver (99.1 - 3.2 (3 whole, 0.2 fractional) = 95.9)
 
-        const f = await loadFixture(
-          deployERC404ExampleWithTokensInSecondSigner,
-        )
+        const f = await loadFixture(deployERC404ExampleWithTokensInSecondSigner)
 
         // Receiver starts out with 0.9 tokens
         const startingBalanceOfReceiver = (f.deployConfig.units / 10n) * 9n // 0.9 tokens
@@ -859,10 +953,16 @@ describe("ERC404", function () {
       // Transfer 1 token from the sender to the receiver
       await f.contract
         .connect(f.signers[0])
-        .safeTransferFrom(f.signers[0].address, f.signers[1].address, f.deployConfig.idPrefix + tokenId)
+        .safeTransferFrom(
+          f.signers[0].address,
+          f.signers[1].address,
+          f.deployConfig.idPrefix + tokenId,
+        )
 
       // The receiver of the NFT should be the owner
-      expect(await f.contract.ownerOf(f.deployConfig.idPrefix + tokenId)).to.equal(f.signers[1].address)
+      expect(
+        await f.contract.ownerOf(f.deployConfig.idPrefix + tokenId),
+      ).to.equal(f.signers[1].address)
     })
 
     it("Reverts when transferring token 0", async function () {
@@ -871,7 +971,11 @@ describe("ERC404", function () {
       await expect(
         f.contract
           .connect(f.signers[0])
-          .safeTransferFrom(f.signers[0].address, f.signers[1].address, f.deployConfig.idPrefix + 0n),
+          .safeTransferFrom(
+            f.signers[0].address,
+            f.signers[1].address,
+            f.deployConfig.idPrefix + 0n,
+          ),
       ).to.be.revertedWithCustomError(f.contract, "InvalidId")
     })
 
@@ -1003,7 +1107,7 @@ describe("ERC404", function () {
           f.contract
             .connect(from)
             .transferFrom(from.address, to.address, value),
-        ).to.emit(f.contract, "ERC20Transfer")
+        ).to.emit(f.contract, "Transfer")
       })
 
       it("Reverts when transferring as ERC-721", async function () {
@@ -1072,7 +1176,7 @@ describe("ERC404", function () {
           f.contract
             .connect(from)
             .transferFrom(from.address, to.address, value),
-        ).to.emit(f.contract, "ERC20Transfer")
+        ).to.emit(f.contract, "Transfer")
       })
 
       it("Reverts when transferring as ERC-721", async function () {
@@ -1143,7 +1247,7 @@ describe("ERC404", function () {
             f.contract
               .connect(from)
               .transferFrom(from.address, to.address, value),
-          ).to.emit(f.contract, "ERC20Transfer")
+          ).to.emit(f.contract, "Transfer")
         })
 
         it("Reverts when transferring as ERC-721", async function () {
@@ -1263,19 +1367,27 @@ describe("ERC404", function () {
           const tokenId = f.deployConfig.idPrefix + 1n
 
           // Confirm that the target token exists, and that it has a non-0x0 owner.
-          expect(await f.contract.ownerOf(tokenId)).to.not.equal(ethers.ZeroAddress)
+          expect(await f.contract.ownerOf(tokenId)).to.not.equal(
+            ethers.ZeroAddress,
+          )
 
           // Confirm that the operator owns the token.
-          expect(await f.contract.ownerOf(tokenId)).to.not.equal(operator.address)
+          expect(await f.contract.ownerOf(tokenId)).to.not.equal(
+            operator.address,
+          )
 
           // Confirm that 'wrongFrom' does not own the token.
-          expect(await f.contract.ownerOf(tokenId)).to.not.equal(wrongFrom.address)
+          expect(await f.contract.ownerOf(tokenId)).to.not.equal(
+            wrongFrom.address,
+          )
 
           // Confirm that 'to does not own the token.
           expect(await f.contract.ownerOf(tokenId)).to.not.equal(to.address)
 
           // Confirm that no approvals have been set.
-          expect(await f.contract.getApproved(tokenId)).to.equal(ethers.ZeroAddress)
+          expect(await f.contract.getApproved(tokenId)).to.equal(
+            ethers.ZeroAddress,
+          )
           expect(
             await f.contract.isApprovedForAll(
               wrongFrom.address,
@@ -1444,15 +1556,17 @@ describe("ERC404", function () {
       // Send 1.5 tokens to address
       await f.contract
         .connect(f.signers[0])
-        .transfer(f.signers[1].address, 15n * f.deployConfig.units / 10n)
+        .transfer(f.signers[1].address, (15n * f.deployConfig.units) / 10n)
 
       // Send .5 tokens to self
       await f.contract
         .connect(f.signers[1])
-        .transfer(f.signers[1].address, 5n * f.deployConfig.units / 10n)
+        .transfer(f.signers[1].address, (5n * f.deployConfig.units) / 10n)
 
       expect(await f.contract.erc721BalanceOf(f.signers[1].address)).to.eq(1n)
-      expect(await f.contract.erc20BalanceOf(f.signers[1].address)).to.eq(15n * f.deployConfig.units / 10n)
+      expect(await f.contract.erc20BalanceOf(f.signers[1].address)).to.eq(
+        (15n * f.deployConfig.units) / 10n,
+      )
     })
   })
 
@@ -1503,6 +1617,22 @@ describe("ERC404", function () {
       ).to.equal(false)
     })
 
+    it("Reverts when setting the zero address", async function () {
+      const f = await loadFixture(deployERC404Example)
+
+      await expect(
+        f.contract
+          .connect(f.signers[0])
+          .setERC721TransferExempt(ethers.ZeroAddress, true),
+      ).to.be.revertedWithCustomError(f.contract, "InvalidExemption")
+
+      await expect(
+        f.contract
+          .connect(f.signers[0])
+          .setERC721TransferExempt(ethers.ZeroAddress, false),
+      ).to.be.revertedWithCustomError(f.contract, "InvalidExemption")
+    })
+
     it("Rebalances ERC721 tokens held by the target", async function () {
       const f = await loadFixture(deployERC404Example)
 
@@ -1526,7 +1656,9 @@ describe("ERC404", function () {
       expect(await f.contract.erc20BalanceOf(targetAddress)).to.equal(
         (35n * f.deployConfig.units) / 10n,
       )
-      expect((await f.contract.getERC721TokensInQueue(0, 3))[0]).to.equal(f.deployConfig.idPrefix + 1n)
+      expect((await f.contract.getERC721TokensInQueue(0, 3))[0]).to.equal(
+        f.deployConfig.idPrefix + 1n,
+      )
 
       // Remove that address from the exemption list.
       await f.contract
@@ -1780,7 +1912,9 @@ describe("ERC404", function () {
         const spender = f.signers[1]
 
         // Confirm that the token is owned by the grantor
-        expect(await f.contract.ownerOf(f.deployConfig.idPrefix + 1n)).to.equal(msgSender.address)
+        expect(await f.contract.ownerOf(f.deployConfig.idPrefix + 1n)).to.equal(
+          msgSender.address,
+        )
 
         const sig = await getPermitSignature(
           f.contractAddress,
@@ -1917,10 +2051,12 @@ describe("ERC404", function () {
 
         expect(
           await f.contract.allowance(msgSender.address, spender.address),
-        ).to.eq(57896044618658097711785492504343953926634992332820282019728792003956564819967n)
+        ).to.eq(
+          57896044618658097711785492504343953926634992332820282019728792003956564819967n,
+        )
 
         await expect(permitTx)
-          .to.emit(f.contract, "ERC20Approval")
+          .to.emit(f.contract, "Approval")
           .withArgs(
             f.signers[0].address,
             f.signers[1].address,
@@ -1941,14 +2077,18 @@ describe("ERC404", function () {
         const intendedOperator = f.signers[1]
 
         // Confirm that the token is owned by the grantor
-        expect(await f.contract.ownerOf(f.deployConfig.idPrefix + 1n)).to.equal(msgSender.address)
+        expect(await f.contract.ownerOf(f.deployConfig.idPrefix + 1n)).to.equal(
+          msgSender.address,
+        )
 
         // Add an operator for msgSender
         const erc721ApprovalTx = await f.contract
           .connect(msgSender)
           .approve(intendedOperator.address, f.deployConfig.idPrefix + 1n)
 
-        const isApproved = await f.contract.getApproved(f.deployConfig.idPrefix + 1n)
+        const isApproved = await f.contract.getApproved(
+          f.deployConfig.idPrefix + 1n,
+        )
 
         expect(isApproved).to.equal(intendedOperator.address)
 
@@ -1960,9 +2100,14 @@ describe("ERC404", function () {
           ),
         ).to.equal(0n)
 
-        await expect(erc721ApprovalTx)
-          .to.emit(f.contract, "Approval")
-          .withArgs(f.signers[0].address, f.signers[1].address, f.deployConfig.idPrefix + 1n)
+        await expect(
+          containsERC721ApprovalEvent(
+            (await erc721ApprovalTx.wait()).logs,
+            f.signers[0].address,
+            f.signers[1].address,
+            f.deployConfig.idPrefix + 1n,
+          ),
+        ).to.eq(true)
       })
 
       it("Allows a token owner to revoke specific ERC-721 token approval from an operator", async function () {
@@ -1974,19 +2119,25 @@ describe("ERC404", function () {
         const intendedOperator = f.signers[1]
 
         // Confirm that the token is owned by the grantor
-        expect(await f.contract.ownerOf(f.deployConfig.idPrefix + 1n)).to.equal(msgSender.address)
+        expect(await f.contract.ownerOf(f.deployConfig.idPrefix + 1n)).to.equal(
+          msgSender.address,
+        )
 
         // Add an operator for msgSender
         await f.contract
           .connect(msgSender)
           .approve(intendedOperator.address, f.deployConfig.idPrefix + 1n)
 
-        let isApproved = await f.contract.getApproved(f.deployConfig.idPrefix + 1n)
+        let isApproved = await f.contract.getApproved(
+          f.deployConfig.idPrefix + 1n,
+        )
 
         expect(isApproved).to.equal(intendedOperator.address)
 
         // Remove the operator
-        await f.contract.connect(msgSender).approve(ethers.ZeroAddress, f.deployConfig.idPrefix + 1n)
+        await f.contract
+          .connect(msgSender)
+          .approve(ethers.ZeroAddress, f.deployConfig.idPrefix + 1n)
 
         isApproved = await f.contract.getApproved(f.deployConfig.idPrefix + 1n)
 
@@ -2029,16 +2180,18 @@ describe("ERC404", function () {
             )
 
             // Confirm that the token is owned by the grantor
-            expect(await f.contract.ownerOf(f.deployConfig.idPrefix + 1n)).to.equal(f.msgSender.address)
+            expect(
+              await f.contract.ownerOf(f.deployConfig.idPrefix + 1n),
+            ).to.equal(f.msgSender.address)
 
             // Approve the operator to transfer the token
             await f.contract
               .connect(f.intendedOperator)
               .approve(f.secondOperator.address, f.deployConfig.idPrefix + 1n)
 
-            expect(await f.contract.getApproved(f.deployConfig.idPrefix + 1n)).to.equal(
-              f.secondOperator.address,
-            )
+            expect(
+              await f.contract.getApproved(f.deployConfig.idPrefix + 1n),
+            ).to.equal(f.secondOperator.address)
           })
         },
       )
@@ -2081,7 +2234,7 @@ describe("ERC404", function () {
         )
 
         await expect(erc20ApprovalTx)
-          .to.emit(f.contract, "ERC20Approval")
+          .to.emit(f.contract, "Approval")
           .withArgs(f.signers[0].address, f.signers[1].address, allowanceToSet)
       })
 
@@ -2101,7 +2254,8 @@ describe("ERC404", function () {
           ),
         ).to.equal(0n)
 
-        const allowanceToSet = 57896044618658097711785492504343953926634992332820282019728792003956564819967n
+        const allowanceToSet =
+          57896044618658097711785492504343953926634992332820282019728792003956564819967n
 
         // Set an allowance. Must be greater than minted to be considered an ERC-20 allowance.
         const erc20ApprovalTx = await f.contract
@@ -2121,7 +2275,7 @@ describe("ERC404", function () {
         )
 
         await expect(erc20ApprovalTx)
-          .to.emit(f.contract, "ERC20Approval")
+          .to.emit(f.contract, "Approval")
           .withArgs(f.signers[0].address, f.signers[1].address, allowanceToSet)
       })
 
@@ -2156,7 +2310,6 @@ describe("ERC404", function () {
         .mintERC20(
           f.signers[1].address,
           f.deployConfig.maxTotalSupplyERC721 * f.deployConfig.units,
-          true,
         )
 
       // Expect the minted count to be equal to the max total supply
@@ -2169,9 +2322,7 @@ describe("ERC404", function () {
         f.deployConfig.maxTotalSupplyERC20,
       )
 
-      await f.contract
-        .connect(f.signers[0])
-        .mintERC20(f.signers[1].address, 1n, true)
+      await f.contract.connect(f.signers[0]).mintERC20(f.signers[1].address, 1n)
 
       // Expect the mint recipient to have the full supply of ERC20 tokens
       expect(await f.contract.erc20BalanceOf(f.signers[1].address)).to.equal(
@@ -2185,7 +2336,9 @@ describe("ERC404", function () {
 
       // Expect the mint recipient to be the owner of token ids 1-100.
       for (let i = 1n; i <= 100n; i++) {
-        expect(await f.contract.ownerOf(f.deployConfig.idPrefix + i)).to.equal(f.signers[1].address)
+        expect(await f.contract.ownerOf(f.deployConfig.idPrefix + i)).to.equal(
+          f.signers[1].address,
+        )
       }
 
       // Transfer 5 full tokens as ERC-20 from the mint recipient to another address (not exempted) (tokens 95-100)
@@ -2203,7 +2356,9 @@ describe("ERC404", function () {
 
       // Expect the sender to be the owner of token ids 1-95.
       for (let i = 1n; i <= 95n; i++) {
-        expect(await f.contract.ownerOf(f.deployConfig.idPrefix + i)).to.equal(f.signers[1].address)
+        expect(await f.contract.ownerOf(f.deployConfig.idPrefix + i)).to.equal(
+          f.signers[1].address,
+        )
       }
 
       // Expect the recipient to have 5 * units ERC-20 tokens and 5 ERC-721 tokens
@@ -2216,7 +2371,9 @@ describe("ERC404", function () {
 
       // Expect the recipient to be the owner of token ids 96-100.
       for (let i = 96n; i <= 100n; i++) {
-        expect(await f.contract.ownerOf(f.deployConfig.idPrefix + i)).to.equal(f.signers[2].address)
+        expect(await f.contract.ownerOf(f.deployConfig.idPrefix + i)).to.equal(
+          f.signers[2].address,
+        )
       }
 
       // Transfer a fraction of a token to another address to break apart a full NFT.
@@ -2243,16 +2400,17 @@ describe("ERC404", function () {
 
       // Expect that the sender holds token ids 97-99 (96 popped off)
       for (let i = 97n; i <= 99n; i++) {
-        expect(await f.contract.ownerOf(f.deployConfig.idPrefix + i)).to.equal(f.signers[2].address)
+        expect(await f.contract.ownerOf(f.deployConfig.idPrefix + i)).to.equal(
+          f.signers[2].address,
+        )
       }
 
       // Expect the contract to have 0 ERC-721 token
       expect(await f.contract.erc721BalanceOf(f.contractAddress)).to.equal(0n)
       // Expect the contract to hold token id 96
-      await expect(f.contract.ownerOf(f.deployConfig.idPrefix + 96n)).to.be.revertedWithCustomError(
-        f.contract,
-        "NotFound",
-      )
+      await expect(
+        f.contract.ownerOf(f.deployConfig.idPrefix + 96n),
+      ).to.be.revertedWithCustomError(f.contract, "NotFound")
 
       // The sender has 4.9 tokens now. Transfer 0.9 tokens to a different address, leaving 4 tokens. This should not break apart any new tokens. The contract hsould still hold 1, the sender should hold 4 and 4 NFTs, and the new receiver should hold 0.9 and no NFTs
       const fractionalValueToTransferERC20T2 = (f.deployConfig.units / 10n) * 9n // 0.9 tokens
@@ -2301,22 +2459,22 @@ describe("ERC404", function () {
       )
       // Expect the sender to hold token ids 98-100
       for (let i = 98n; i <= 100n; i++) {
-        expect(await f.contract.ownerOf(f.deployConfig.idPrefix + i)).to.equal(f.signers[2].address)
+        expect(await f.contract.ownerOf(f.deployConfig.idPrefix + i)).to.equal(
+          f.signers[2].address,
+        )
       }
 
       // Expect the contract still hold 0 tokens
       expect(await f.contract.erc721BalanceOf(f.contractAddress)).to.equal(0n)
 
       // Expect token 96 and 97 to be owned by the zero address
-      await expect(f.contract.ownerOf(f.deployConfig.idPrefix + 96n)).to.be.revertedWithCustomError(
-        f.contract,
-        "NotFound",
-      )
+      await expect(
+        f.contract.ownerOf(f.deployConfig.idPrefix + 96n),
+      ).to.be.revertedWithCustomError(f.contract, "NotFound")
 
-      await expect(f.contract.ownerOf(f.deployConfig.idPrefix + 97n)).to.be.revertedWithCustomError(
-        f.contract,
-        "NotFound",
-      )
+      await expect(
+        f.contract.ownerOf(f.deployConfig.idPrefix + 97n),
+      ).to.be.revertedWithCustomError(f.contract, "NotFound")
 
       // Transfer two full tokens to a new address, leaving the sender with 1.9 tokens and 1 NFT, the new recipient with 2 tokens and 2 NFTs, and the contract with 0 tokens and 2 NFTs.
       await f.contract
@@ -2342,18 +2500,18 @@ describe("ERC404", function () {
       )
 
       // Expect the sender to hold token id 100
-      expect(await f.contract.ownerOf(f.deployConfig.idPrefix + 100n)).to.equal(f.signers[2].address)
+      expect(await f.contract.ownerOf(f.deployConfig.idPrefix + 100n)).to.equal(
+        f.signers[2].address,
+      )
 
       // Expect tokens 96 and 97 to still be owned by the zero address
-      await expect(f.contract.ownerOf(f.deployConfig.idPrefix + 96n)).to.be.revertedWithCustomError(
-        f.contract,
-        "NotFound",
-      )
+      await expect(
+        f.contract.ownerOf(f.deployConfig.idPrefix + 96n),
+      ).to.be.revertedWithCustomError(f.contract, "NotFound")
 
-      await expect(f.contract.ownerOf(f.deployConfig.idPrefix + 97n)).to.be.revertedWithCustomError(
-        f.contract,
-        "NotFound",
-      )
+      await expect(
+        f.contract.ownerOf(f.deployConfig.idPrefix + 97n),
+      ).to.be.revertedWithCustomError(f.contract, "NotFound")
 
       // Transfer 0.9 ERC-20s (enough ERC-20 tokens for signer 5 to gain a full token), leaving the sender with 1.0 tokens and 1 NFT, the new recipient with 1 ERC-20 and 1 ERC-721, and the contract with 0 tokens and 1 NFTs.
       // Transfer 0.9 tokens to the recipient
@@ -2389,7 +2547,9 @@ describe("ERC404", function () {
       )
 
       // Expect the recipient to hold token id 96 (96 was added to the queue first, so it should be the first to be removed)
-      expect(await f.contract.ownerOf(f.deployConfig.idPrefix + 96n)).to.equal(f.signers[5].address)
+      expect(await f.contract.ownerOf(f.deployConfig.idPrefix + 96n)).to.equal(
+        f.signers[5].address,
+      )
 
       // Expect the sender to have 1 * units ERC-20 tokens and 1 ERC-721 token
       expect(await f.contract.erc20BalanceOf(f.signers[2].address)).to.equal(
@@ -2400,17 +2560,44 @@ describe("ERC404", function () {
       )
 
       // Expect the sender to hold token id 100
-      expect(await f.contract.ownerOf(f.deployConfig.idPrefix + 100n)).to.equal(f.signers[2].address)
+      expect(await f.contract.ownerOf(f.deployConfig.idPrefix + 100n)).to.equal(
+        f.signers[2].address,
+      )
 
       // Expect the zero address to still hold token id 97
-      await expect(f.contract.ownerOf(f.deployConfig.idPrefix + 97n)).to.be.revertedWithCustomError(
-        f.contract,
-        "NotFound",
-      )
+      await expect(
+        f.contract.ownerOf(f.deployConfig.idPrefix + 97n),
+      ).to.be.revertedWithCustomError(f.contract, "NotFound")
     })
 
     it("Various weird scenarios where addresses are added and removed from the ERC-721 transfer exempt list", async function () {
       // TODO
+    })
+  })
+
+  describe("#_mintERC20", function () {
+    it("Mints on partial balances", async function () {
+      const f = await loadFixture(deployMinimalERC404)
+
+      await f.contract.mintERC20(
+        f.signers[1].address,
+        (5n * f.deployConfig.units) / 10n,
+      )
+
+      expect(await f.contract.balanceOf(f.signers[1].address)).to.eq(
+        (5n * f.deployConfig.units) / 10n,
+      )
+      expect(await f.contract.erc721BalanceOf(f.signers[1].address)).to.eq(0)
+
+      await f.contract.mintERC20(
+        f.signers[1].address,
+        (5n * f.deployConfig.units) / 10n,
+      )
+
+      expect(await f.contract.balanceOf(f.signers[1].address)).to.eq(
+        f.deployConfig.units,
+      )
+      expect(await f.contract.erc721BalanceOf(f.signers[1].address)).to.eq(1)
     })
   })
 
@@ -2429,11 +2616,7 @@ describe("ERC404", function () {
           expect(await f.contract.erc721TotalSupply()).to.equal(0n)
 
           // Mint a new full ERC-20 token + corresponding ERC-721 token
-          await f.contract.mintERC20(
-            f.signers[0].address,
-            f.deployConfig.units,
-            true,
-          )
+          await f.contract.mintERC20(f.signers[0].address, f.deployConfig.units)
 
           expect(await f.contract.erc721TotalSupply()).to.equal(1n)
         })
@@ -2452,18 +2635,18 @@ describe("ERC404", function () {
           expect(await f.contract.erc721TotalSupply()).to.equal(0n)
 
           // Mint a new full ERC-20 token + corresponding ERC-721 token
-          await f.contract.mintERC20(
-            f.signers[0].address,
-            f.deployConfig.units,
-            true,
-          )
+          await f.contract.mintERC20(f.signers[0].address, f.deployConfig.units)
 
           expect(await f.contract.erc721TotalSupply()).to.equal(1n)
 
           // Transfer the factional token to the contract
           await f.contract
             .connect(f.signers[0])
-            .transferFrom(f.signers[0].address, f.contractAddress, f.deployConfig.idPrefix + 1n)
+            .transferFrom(
+              f.signers[0].address,
+              f.contractAddress,
+              f.deployConfig.idPrefix + 1n,
+            )
 
           // Expect the contract to have 0 ERC-721 token
           expect(await f.contract.erc721BalanceOf(f.contractAddress)).to.equal(
@@ -2474,19 +2657,19 @@ describe("ERC404", function () {
           expect(await f.contract.getERC721QueueLength()).to.equal(0n)
 
           // Expect the contract to own token 1
-          expect(await f.contract.ownerOf(f.deployConfig.idPrefix + 1n)).to.equal(f.contractAddress)
+          expect(
+            await f.contract.ownerOf(f.deployConfig.idPrefix + 1n),
+          ).to.equal(f.contractAddress)
 
           // Mint a new full ERC-20 token + corresponding ERC-721 token
-          await f.contract.mintERC20(
-            f.signers[0].address,
-            f.deployConfig.units,
-            true,
-          )
+          await f.contract.mintERC20(f.signers[0].address, f.deployConfig.units)
 
           expect(await f.contract.erc721TotalSupply()).to.equal(2n)
 
           // Expect the contract to still own token 1
-          expect(await f.contract.ownerOf(f.deployConfig.idPrefix + 1n)).to.equal(f.contractAddress)
+          expect(
+            await f.contract.ownerOf(f.deployConfig.idPrefix + 1n),
+          ).to.equal(f.contractAddress)
 
           // Expect the mint recipient to have have a balance of 1 ERC-721 token
           expect(
@@ -2499,7 +2682,9 @@ describe("ERC404", function () {
           ).to.equal(f.deployConfig.units)
 
           // Expect the mint recipient to be the owner of token 2
-          expect(await f.contract.ownerOf(f.deployConfig.idPrefix + 2n)).to.equal(f.signers[0].address)
+          expect(
+            await f.contract.ownerOf(f.deployConfig.idPrefix + 2n),
+          ).to.equal(f.signers[0].address)
         })
       })
     })

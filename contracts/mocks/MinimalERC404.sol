@@ -15,10 +15,9 @@ contract MinimalERC404 is Ownable, ERC404 {
 
   function mintERC20(
     address account_,
-    uint256 value_,
-    bool mintCorrespondingERC721s_
+    uint256 value_
   ) external onlyOwner {
-    _mintERC20(account_, value_, mintCorrespondingERC721s_);
+    _mintERC20(account_, value_);
   }
 
   function tokenURI(uint256 id_) public pure override returns (string memory) {
