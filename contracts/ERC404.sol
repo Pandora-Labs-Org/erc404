@@ -761,33 +761,6 @@ abstract contract ERC404 is IERC404 {
     }
   }
 
-  /// @notice Function to reinstate balance on exemption removal
-  function _reinstateERC721Balance(address target_) private {
-    uint256 expectedERC721Balance = erc20BalanceOf(target_) / units;
-    uint256 actualERC721Balance = erc721BalanceOf(target_);
-
-    for (uint256 i = 0; i < expectedERC721Balance - actualERC721Balance; ) {
-      // Transfer ERC721 balance in from pool
-      _retrieveOrMintERC721(target_);
-      unchecked {
-        ++i;
-      }
-    }
-  }
-
-  /// @notice Function to clear balance on exemption inclusion
-  function _clearERC721Balance(address target_) private {
-    uint256 erc721Balance = erc721BalanceOf(target_);
-
-    for (uint256 i = 0; i < erc721Balance; ) {
-      // Transfer out ERC721 balance
-      _withdrawAndStoreERC721(target_);
-      unchecked {
-        ++i;
-      }
-    }
-  }
-
   function _getOwnerOf(
     uint256 id_
   ) internal view virtual returns (address ownerOf_) {
