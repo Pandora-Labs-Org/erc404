@@ -15,6 +15,9 @@ describe("ERC404UniswapV3Exempt", function () {
     ).deploy()
     await uniswapV3FactoryContract.waitForDeployment()
 
+    // Add the 100bps fee tier.
+    await uniswapV3FactoryContract.connect(signers[0]).enableFeeAmount(100, 1)
+
     // Deploy WETH.
     const wethSource = require("@uniswap/v2-periphery/build/WETH9.json")
     const wethContract = await new ethers.ContractFactory(
@@ -83,7 +86,7 @@ describe("ERC404UniswapV3Exempt", function () {
       () => ethers.Wallet.createRandom().address,
     )
 
-    const feeTiers = [500n, 3000n, 10000n]
+    const feeTiers = [100n, 500n, 3000n, 10000n]
 
     return {
       contract,

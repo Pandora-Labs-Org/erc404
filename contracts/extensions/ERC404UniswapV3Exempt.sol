@@ -33,7 +33,7 @@ abstract contract ERC404UniswapV3Exempt is ERC404 {
       revert ERC404UniswapV3ExemptWETH9Mismatch();
     }
 
-    uint24[3] memory feeTiers = [uint24(500), uint24(3_000), uint24(10_000)];
+    uint24[4] memory feeTiers = [uint24(100), uint24(500), uint24(3_000), uint24(10_000)];
 
     // Determine the Uniswap v3 pair address for this token.
     for (uint256 i = 0; i < feeTiers.length; ) {
