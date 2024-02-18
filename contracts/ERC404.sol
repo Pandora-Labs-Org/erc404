@@ -446,7 +446,7 @@ abstract contract ERC404 is IERC404 {
   /// @notice For a token token id to be considered valid, it just needs
   ///         to fall within the range of possible token ids, it does not
   ///         necessarily have to be minted yet.
-  function _isValidTokenId(uint256 id_) internal view returns (bool) {
+  function _isValidTokenId(uint256 id_) internal pure returns (bool) {
     return id_ > ID_ENCODING_PREFIX && id_ != type(uint256).max;
   }
 
