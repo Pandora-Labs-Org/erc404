@@ -369,16 +369,16 @@ abstract contract ERC404 is IERC404 {
   function _computeDomainSeparator() internal view virtual returns (bytes32) {
     return
       keccak256(
-        abi.encode(
-          keccak256(
-            "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
-          ),
-          keccak256(bytes(name)),
-          keccak256("1"),
-          block.chainid,
-          address(this)
-        )
-      );
+      abi.encode(
+        keccak256(
+          "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
+        ),
+        keccak256(bytes(name)),
+        keccak256("1"),
+        block.chainid,
+        address(this)
+      )
+    );
   }
 
   /// @notice This is the lowest level ERC-20 transfer function, which
@@ -487,7 +487,8 @@ abstract contract ERC404 is IERC404 {
       uint256 tokensToRetrieveOrMint = (balanceOf[to_] / units) -
         (erc20BalanceOfReceiverBefore / units);
       for (uint256 i = 0; i < tokensToRetrieveOrMint;) {
-        _retrieveOrMintERC721(to_);
+        uint256 id = _retrieveOrMintERC721(to_);
+        _afterMintERC721(to_, id, value_);
         unchecked {
           i++;
         }
@@ -550,7 +551,8 @@ abstract contract ERC404 is IERC404 {
         (erc20BalanceOfReceiverBefore + fractionalAmount) / units >
         (erc20BalanceOfReceiverBefore / units)
       ) {
-        _retrieveOrMintERC721(to_);
+        uint256 id = _retrieveOrMintERC721(to_);
+        _afterMintERC721(to_, id, value_);
       }
     }
 
@@ -590,7 +592,7 @@ abstract contract ERC404 is IERC404 {
   /// @dev This function will allow minting of new ERC-721s up to the total fractional supply. It will
   ///      first try to pull from the bank, and if the bank is empty, it will mint a new token.
   /// Does not handle ERC-721 exemptions.
-  function _retrieveOrMintERC721(address to_) internal virtual {
+  function _retrieveOrMintERC721(address to_) internal virtual returns (uint256) {
     if (to_ == address(0)) {
       revert InvalidRecipient();
     }
@@ -619,10 +621,10 @@ abstract contract ERC404 is IERC404 {
     // Does not handle ERC-721 exemptions.
     _transferERC721(erc721Owner, to_, id);
 
-    _afterMintERC721(to_, id);
+    return id;
   }
 
-  function _afterMintERC721(address to_, uint256 id_) internal virtual {}
+  function _afterMintERC721(address to_, uint256 id_, uint256 value_) internal virtual {}
 
   /// @notice Internal function for ERC-721 deposits to bank (this contract).
   /// @dev This function will allow depositing of ERC-721s to the bank, which can be retrieved by future minters.
