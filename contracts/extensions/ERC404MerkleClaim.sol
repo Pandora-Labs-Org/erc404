@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
@@ -41,11 +41,11 @@ abstract contract ERC404MerkleClaim is IERC404MerkleClaim {
     _mintERC20(msg.sender, value_);
   }
 
-  function _setAirdropMerkleRoot(bytes32 airdropMerkleRoot_) virtual internal {
+  function _setAirdropMerkleRoot(bytes32 airdropMerkleRoot_) internal virtual {
     airdropMerkleRoot = airdropMerkleRoot_;
   }
 
-  function _setAirdropIsOpen(bool state_) virtual internal {
+  function _setAirdropIsOpen(bool state_) internal virtual {
     airdropIsOpen = state_;
   }
 
