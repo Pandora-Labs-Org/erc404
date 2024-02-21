@@ -96,8 +96,11 @@ abstract contract ERC404U16 is IERC404 {
   ) public view virtual returns (address erc721Owner) {
     erc721Owner = _getOwnerOf(id_);
 
-    // If the id_ is beyond the range of minted tokens, is 0, or the token is not owned by anyone, revert.
-    if (id_ <= ID_ENCODING_PREFIX || erc721Owner == address(0)) {
+    if (!_isValidTokenId(id_)) {
+      revert InvalidTokenId();
+    }
+
+    if (erc721Owner == address(0)) {
       revert NotFound();
     }
   }
@@ -172,7 +175,7 @@ abstract contract ERC404U16 is IERC404 {
   ) public virtual returns (bool) {
     // The ERC-721 tokens are 1-indexed, so 0 is not a valid id and indicates that
     // operator is attempting to set the ERC-20 allowance to 0.
-    if (valueOrId_ > ID_ENCODING_PREFIX && valueOrId_ != type(uint256).max) {
+    if (_isValidTokenId(valueOrId_)) {
       erc721Approve(spender_, valueOrId_);
     } else {
       return erc20Approve(spender_, valueOrId_);
@@ -233,7 +236,7 @@ abstract contract ERC404U16 is IERC404 {
     address to_,
     uint256 valueOrId_
   ) public virtual returns (bool) {
-    if (valueOrId_ > ID_ENCODING_PREFIX) {
+    if (_isValidTokenId(valueOrId_)) {
       erc721TransferFrom(from_, to_, valueOrId_);
     } else {
       // Intention is to transfer as ERC-20 token (value).
@@ -348,7 +351,7 @@ abstract contract ERC404U16 is IERC404 {
     uint256 id_,
     bytes memory data_
   ) public virtual {
-    if (id_ <= ID_ENCODING_PREFIX) {
+    if (!_isValidTokenId(id_)) {
       revert InvalidTokenId();
     }
 
@@ -379,7 +382,7 @@ abstract contract ERC404U16 is IERC404 {
       revert PermitDeadlineExpired();
     }
 
-    if (value_ > ID_ENCODING_PREFIX && value_ != type(uint256).max) {
+    if (_isValidTokenId(value_)) {
       revert InvalidApproval();
     }
 
@@ -448,6 +451,13 @@ abstract contract ERC404U16 is IERC404 {
     address target_
   ) public view virtual returns (bool) {
     return target_ == address(0) || _erc721TransferExempt[target_];
+  }
+
+  /// @notice For a token token id to be considered valid, it just needs
+  ///         to fall within the range of possible token ids, it does not
+  ///         necessarily have to be minted yet.
+  function _isValidTokenId(uint256 id_) internal pure returns (bool) {
+    return id_ > ID_ENCODING_PREFIX && id_ != type(uint256).max;
   }
 
   /// @notice Internal function to compute domain separator for EIP-2612 permits
