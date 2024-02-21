@@ -3,6 +3,8 @@ pragma solidity ^0.8.20;
 
 import {IERC721Receiver} from "@openzeppelin/contracts/interfaces/IERC721Receiver.sol";
 import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
+import {IERC721} from "@openzeppelin/contracts/interfaces/IERC721.sol";
+import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {IERC404} from "./interfaces/IERC404.sol";
 import {DoubleEndedQueue} from "./lib/DoubleEndedQueue.sol";
 import {ERC721Events} from "./lib/ERC721Events.sol";
@@ -428,6 +430,8 @@ abstract contract ERC404 is IERC404 {
   ) public view virtual returns (bool) {
     return
       interfaceId == type(IERC404).interfaceId ||
+      interfaceId == type(IERC721).interfaceId ||
+      interfaceId == type(IERC20).interfaceId ||
       interfaceId == type(IERC165).interfaceId;
   }
 
