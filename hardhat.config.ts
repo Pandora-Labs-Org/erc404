@@ -4,7 +4,28 @@ import "@nomicfoundation/hardhat-toolbox"
 import "hardhat-gas-reporter"
 
 const config: HardhatUserConfig = {
-  solidity: { compilers: [{ version: "0.8.20" }, { version: "0.4.18" }] },
+  solidity: {
+    compilers: [
+      {
+        version: "0.8.24",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 1_000,
+          },
+        },
+      },
+      {
+        version: "0.4.18",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 1_000,
+          },
+        },
+      },
+    ],
+  },
   gasReporter: {
     currency: "USD",
     gasPrice: 21,

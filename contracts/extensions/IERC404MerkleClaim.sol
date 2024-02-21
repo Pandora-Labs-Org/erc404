@@ -1,5 +1,5 @@
-//SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.24;
 
 interface IERC404MerkleClaim {
   error AirdropAlreadyClaimed();
@@ -12,5 +12,5 @@ interface IERC404MerkleClaim {
     uint256 value_
   ) external view returns (bool);
 
-  function airdropMint(bytes32[] memory proof_, uint256 value_) external;
+  function airdropMintERC20(bytes32[] memory proof_, uint256 value_) external;
 }
