@@ -30,13 +30,15 @@ abstract contract ERC404MerkleClaim is IERC404MerkleClaim {
     return false;
   }
 
-  // To use, override this function in your contract, call
-  // super.airdropMint(proof_) within your override function, then mint tokens.
-  function airdropMint(
+  // Pass in value_ as the amount of tokens to mint in ERC-20 format (i.e. wei, if using decimals 18).
+  function airdropMintERC20(
     bytes32[] memory proof_,
     uint256 value_
   ) public virtual whenAirdropIsOpen {
+    // Validate and record the airdrop claim so they can't claim it twice.
     _validateAndRecordAirdropClaim(proof_, msg.sender, value_);
+    // Mint the user's airdrop to them.
+    _mintERC20(msg.sender, value_);
   }
 
   function _setAirdropMerkleRoot(bytes32 airdropMerkleRoot_) virtual internal {
