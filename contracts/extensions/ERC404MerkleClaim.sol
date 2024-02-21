@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity 0.8.24;
 
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import {IERC404MerkleClaim} from "./IERC404MerkleClaim.sol";
@@ -20,7 +20,7 @@ abstract contract ERC404MerkleClaim is IERC404MerkleClaim {
     bytes32[] memory proof_,
     address claimer_,
     uint256 value_
-  ) public view returns (bool) {
+  ) public view virtual returns (bool) {
     bytes32 leaf = keccak256(
       bytes.concat(keccak256(abi.encode(claimer_, value_)))
     );
@@ -39,19 +39,19 @@ abstract contract ERC404MerkleClaim is IERC404MerkleClaim {
     _validateAndRecordAirdropClaim(proof_, msg.sender, value_);
   }
 
-  function _setAirdropMerkleRoot(bytes32 airdropMerkleRoot_) internal {
+  function _setAirdropMerkleRoot(bytes32 airdropMerkleRoot_) virtual internal {
     airdropMerkleRoot = airdropMerkleRoot_;
   }
 
-  function _toggleAirdropIsOpen() internal {
-    airdropIsOpen = !airdropIsOpen;
+  function _setAirdropIsOpen(bool state_) virtual internal {
+    airdropIsOpen = state_;
   }
 
   function _validateAndRecordAirdropClaim(
     bytes32[] memory proof_,
     address claimer_,
     uint256 value_
-  ) internal {
+  ) internal virtual {
     // Check that the address is eligible.
     if (!verifyProof(proof_, claimer_, value_)) {
       revert NotEligibleForAirdrop();
