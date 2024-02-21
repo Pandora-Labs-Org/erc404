@@ -1568,6 +1568,36 @@ describe("ERC404", function () {
         (15n * f.deployConfig.units) / 10n,
       )
     })
+
+    it("Handles dequeue / enqueue correctly", async function () {
+      const f = await loadFixture(deployERC404Example)
+
+      // Send 4 tokens to address
+      await f.contract
+        .connect(f.signers[0])
+        .transfer(f.signers[1].address, 4n * f.deployConfig.units)
+
+      // Send 1 tokens to deployer
+      await f.contract
+       .connect(f.signers[1])
+       .transfer(f.signers[0].address, 1n * f.deployConfig.units)
+
+      expect(await f.contract.getERC721QueueLength()).to.eq(1)
+
+      // Send 1 tokens to address
+      await f.contract
+        .connect(f.signers[0])
+        .transfer(f.signers[1].address, 1n * f.deployConfig.units)
+
+        expect(await f.contract.getERC721QueueLength()).to.eq(0)
+
+      // Send 1 tokens to deployer
+      await f.contract
+       .connect(f.signers[1])
+       .transfer(f.signers[0].address, 1n * f.deployConfig.units)
+
+      expect(await f.contract.getERC721QueueLength()).to.eq(1)
+    })
   })
 
   describe("#setERC721TransferExempt", function () {

@@ -12,9 +12,5 @@ library ERC721Events {
     address indexed spender,
     uint256 indexed id
   );
-  event Transfer(
-    address indexed from,
-    address indexed to,
-    uint256 indexed id
-  );
+  event Transfer(address indexed from, address indexed to, uint256 indexed id);
 }

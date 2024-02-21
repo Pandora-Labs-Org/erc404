@@ -262,8 +262,8 @@ abstract contract ERC404 is IERC404 {
       revert Unauthorized();
     }
 
-    // We only need to check ERC-721 transfer exempt status for the recipient 
-    // since the sender being ERC-721 transfer exempt means they have already 
+    // We only need to check ERC-721 transfer exempt status for the recipient
+    // since the sender being ERC-721 transfer exempt means they have already
     // had their ERC-721s stripped away during the rebalancing process.
     if (erc721TransferExempt(to_)) {
       revert RecipientIsERC721TransferExempt();

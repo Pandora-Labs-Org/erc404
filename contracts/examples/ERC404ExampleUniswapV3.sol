@@ -19,7 +19,10 @@ contract ERC404ExampleUniswapV3 is Ownable, ERC404, ERC404UniswapV3Exempt {
   )
     ERC404(name_, symbol_, decimals_)
     Ownable(initialOwner_)
-    ERC404UniswapV3Exempt(uniswapSwapRouter_, uniswapV3NonfungiblePositionManager_)
+    ERC404UniswapV3Exempt(
+      uniswapSwapRouter_,
+      uniswapV3NonfungiblePositionManager_
+    )
   {
     // Do not mint the ERC721s to the initial owner, as it's a waste of gas.
     _setERC721TransferExempt(initialMintRecipient_, true);

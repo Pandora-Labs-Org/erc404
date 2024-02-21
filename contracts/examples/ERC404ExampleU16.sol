@@ -23,7 +23,10 @@ contract ERC404ExampleU16 is Ownable, ERC404U16 {
     return string.concat("https://example.com/token/", Strings.toString(id_));
   }
 
-  function setERC721TransferExempt(address account_, bool value_) external onlyOwner {
+  function setERC721TransferExempt(
+    address account_,
+    bool value_
+  ) external onlyOwner {
     _setERC721TransferExempt(account_, value_);
   }
 }
