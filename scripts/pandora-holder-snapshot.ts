@@ -10,7 +10,12 @@ import * as ss from "simple-statistics"
  * @param endBlock
  * @returns
  */
-async function loadOrGenerateEventsFile(contract, startBlock, endBlock) {
+async function loadOrGenerateEventsFile(
+  contract,
+  startBlock: number,
+  endBlock: number,
+  isPandora: boolean,
+) {
   const eventsFilename = `events-${await contract.getAddress()}-${startBlock}-${endBlock}.json`
 
   if (fs.existsSync(`tmp/${eventsFilename}`)) {
@@ -18,9 +23,13 @@ async function loadOrGenerateEventsFile(contract, startBlock, endBlock) {
     const events = JSON.parse(
       fs.readFileSync(`tmp/${eventsFilename}`).toString(),
     )
+
+    console.log(`Found ${events.length} events`)
     return events
   } else {
-    const filter = contract.filters.ERC20Transfer(null, null, null)
+    const filter = isPandora
+      ? contract.filters.ERC20Transfer(null, null, null)
+      : contract.filters.Transfer(null, null, null)
     const events = []
     for (let fromBlock = startBlock; fromBlock <= endBlock; fromBlock += 1000) {
       // Ensure toBlock is either the end of the batch or the endBlock, whichever is smaller.
@@ -38,6 +47,7 @@ async function loadOrGenerateEventsFile(contract, startBlock, endBlock) {
     // Store the events in a JSON file.
     fs.writeFileSync(`tmp/${eventsFilename}`, JSON.stringify(events, null, 2))
 
+    console.log(`Found ${events.length} events`)
     return events
   }
 }
@@ -47,14 +57,18 @@ async function loadOrGenerateEventsFile(contract, startBlock, endBlock) {
  * @param events
  * @returns
  */
-function processEvents(events) {
+function processEvents(events, isPandora: boolean) {
   const balances: Record<string, bigint> = {}
 
   for (const event of events) {
     // Parse the event using the Pandora interface abi.
-    const iface = new ethers.Interface([
-      "event ERC20Transfer(address indexed from, address indexed to, uint256 value)",
-    ])
+    const iface = isPandora
+      ? new ethers.Interface([
+          "event ERC20Transfer(address indexed from, address indexed to, uint256 value)",
+        ])
+      : new ethers.Interface([
+          "event Transfer(address indexed from, address indexed to, uint256 value)",
+        ])
 
     const parsedEvent = iface.parseLog(event)
 
@@ -150,14 +164,18 @@ async function filterBalances(balances, badAddresses, cutoff) {
     "0x1dF4C6e36d61416813B42fE32724eF11e363EDDc", // 1% fee tier
   ]
 
-  // Add some extra bad addresses.
+  const deadAddress = "0x000000000000000000000000000000000000dEaD"
+  const pandoraPodAddress = "0xf109BA50e6697F2579d5B073f347520373C2ADb3"
+
+  // Add some extra bad addresses. Run list through ethers.getAddress to ensure they are checksummed.
   const finalBadAddresses = [
     ...badAddresses,
     uniswapV2Pool,
     ...uniswapV3Pools,
     ethers.ZeroAddress,
-    "0x000000000000000000000000000000000000dEaD",
-  ]
+    deadAddress,
+    pandoraPodAddress,
+  ].map((address) => ethers.getAddress(address))
 
   // Remove the bad addresses.
   finalBadAddresses.forEach((address) => {
@@ -224,18 +242,49 @@ function calculateAirdropDistribution(
   return airdropDistribution
 }
 
+async function peapodsSnapshot(endBlock: number) {
+  // Configuration.
+  const startBlock = 19167200
+  const pandoraPodMainnetAddress = "0xf109BA50e6697F2579d5B073f347520373C2ADb3"
+
+  // Connect to the deployed mainnet Pandora Pod contract using a MockERC20 interface.
+  const pandoraPodFactory = await ethers.getContractFactory("MockERC20")
+  const pandoraPodContract = await pandoraPodFactory.attach(
+    pandoraPodMainnetAddress,
+  )
+
+  //  First load the events.
+  const events = await loadOrGenerateEventsFile(
+    pandoraPodContract,
+    startBlock,
+    endBlock,
+    false,
+  )
+
+  // Then process the events.
+  console.log(`Loaded ${events.length} events`)
+  const balances = processEvents(events, false)
+
+  return balances
+}
+
 /**
  * Main function.
  */
 async function main() {
+  // Configuration.
   const startBlock = 19139822
   const endBlock = 19279784
   const pandoraDeployer = "0xbC17fBf63177bC1110f460c4B1386f230d0Fcef3"
   const runFullOnchainBalanceCheck = false
-  const pandoraFactory = await ethers.getContractFactory("Pandora")
-
-  // Connect to the deployed mainnet contract.
+  const airdropCutoff = ethers.parseEther("0.01")
+  const pandoraMultisig = "0x508894ABC5905eBE8c5B6D6EcaA0Fe24Bb63aB0b"
+  const lockup = "0xAFb979d9afAd1aD27C5eFf4E27226E3AB9e5dCC9"
+  const includePeapods = true
   const pandoraMainnetAddress = "0x9E9FbDE7C7a83c43913BddC8779158F1368F0413"
+
+  // Connect to the deployed mainnet Pandora contract.
+  const pandoraFactory = await ethers.getContractFactory("Pandora")
   const pandoraContract = await pandoraFactory.attach(pandoraMainnetAddress)
 
   //  First load the events.
@@ -243,11 +292,11 @@ async function main() {
     pandoraContract,
     startBlock,
     endBlock,
+    true,
   )
 
   // Then process the events.
-  console.log(`Loaded ${events.length} events`)
-  const balances = processEvents(events)
+  const balances = processEvents(events, true)
 
   if (runFullOnchainBalanceCheck) {
     console.log("Performing full on-chain balance check")
@@ -273,13 +322,29 @@ async function main() {
   fs.writeFileSync(`tmp/${balancesFilename}`, JSON.stringify(balances, null, 2))
   console.log("Saved unfiltered balances to file", balancesFilename)
 
+  if (includePeapods) {
+    // Take Pandora peapods snapshot
+    const pandoraPeapodsBalances = await peapodsSnapshot(endBlock)
+
+    // Merge the two balance sets.
+    for (const [address, balance] of Object.entries(pandoraPeapodsBalances)) {
+      if (!balances[address]) {
+        balances[address] = 0n
+      }
+      balances[address] += balance
+    }
+  }
+
   // Filtering step -- this is business logic specific area where you can filter out addresses that you don't want to include in the snapshot.
   // Remove the deployer (he has a negative balance due to the initial minting).
-  const airdropCutoff = ethers.parseEther("0.01")
-
   const filteredBalances = await filterBalances(
     balances,
-    [pandoraDeployer, await pandoraContract.getAddress()],
+    [
+      pandoraDeployer,
+      await pandoraContract.getAddress(),
+      pandoraMultisig,
+      lockup,
+    ],
     airdropCutoff,
   )
 
