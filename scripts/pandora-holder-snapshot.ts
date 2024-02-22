@@ -154,11 +154,11 @@ async function main() {
     console.log("Skipping full check")
   }
 
-  const balancesFilename = `balances-${await pandoraContract.getAddress()}-${startBlock}-${endBlock}.json`
+  const balancesFilename = `unfiltered-balances-${await pandoraContract.getAddress()}-${startBlock}-${endBlock}.json`
 
   // Store the balances in a file.
   fs.writeFileSync(`tmp/${balancesFilename}`, JSON.stringify(balances, null, 2))
-  console.log("Saved balances to file", balancesFilename)
+  console.log("Saved unfiltered balances to file", balancesFilename)
 
   // Filtering step -- this is business logic specific area where you can filter out addresses that you don't want to include in the snapshot.
   // Remove the deployer (he has a negative balance due to the initial minting).
@@ -167,12 +167,20 @@ async function main() {
     await pandoraContract.getAddress(),
   ])
 
+  // Store the filtered balances in a file.
+  const filteredBalancesFilename = `filtered-balances-${await pandoraContract.getAddress()}-${startBlock}-${endBlock}.json`
+  fs.writeFileSync(
+    `tmp/${filteredBalancesFilename}`,
+    JSON.stringify(filteredBalances, null, 2),
+  )
+  console.log("Saved filtered balances to file", filteredBalancesFilename)
+
   // Generate the merkle tree.
   const tree = await generateMerkleTree(filteredBalances)
 
   // Store the merkle tree in a file.
   const treeFilename = `tree-${await pandoraContract.getAddress()}-${startBlock}-${endBlock}.json`
-  fs.writeFileSync(`tmp/${treeFilename}`, JSON.stringify(tree, null, 2))
+  fs.writeFileSync(`tmp/${treeFilename}`, JSON.stringify(tree.dump()))
   console.log("Saved merkle tree to file", treeFilename)
 
   // Print the merkle tree root.
