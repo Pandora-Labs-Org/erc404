@@ -9,10 +9,10 @@ pragma solidity ^0.8.20;
  * FIFO queues. Storage use is optimized, and all operations are O(1) constant time. This includes {clear}, given that
  * the existing queue contents are left in storage.
  *
- * The struct is called `Bytes32Deque`. Other types can be cast to and from `bytes32`. This data structure can only be
- * used in storage, and not in memory.
+ * The struct is called `Uint256Deque`. This data structure can only be used in storage, and not in memory.
+ *
  * ```solidity
- * DoubleEndedQueue.Bytes32Deque queue;
+ * DoubleEndedQueue.Uint256Deque queue;
  * ```
  */
 library DoubleEndedQueue {

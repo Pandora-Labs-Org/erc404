@@ -1,36 +1,11 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {IERC165} from "../lib/interfaces/IERC165.sol";
+import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
 
 interface IERC404 is IERC165 {
-  event ERC20Approval(address owner, address spender, uint256 value);
-  event ApprovalForAll(
-    address indexed owner,
-    address indexed operator,
-    bool approved
-  );
-  event ERC721Approval(
-    address indexed owner,
-    address indexed spender,
-    uint256 indexed id
-  );
-  event ERC20Transfer(address indexed from, address indexed to, uint256 amount);
-  event ERC721Transfer(
-    address indexed from,
-    address indexed to,
-    uint256 indexed id
-  );
-
-  /**
-   * @dev Indicates an error related to the current `balance` of a `sender`. Used in transfers.
-     * @param sender Address whose tokens are being transferred.
-     * @param balance Current balance for the interacting account.
-     * @param needed Minimum amount required to perform a transfer.
-     */
-  error ERC20InsufficientBalance(address sender, uint256 balance, uint256 needed);
   error NotFound();
-  error InvalidId();
+  error InvalidTokenId();
   error AlreadyExists();
   error InvalidRecipient();
   error InvalidSender();
@@ -38,15 +13,15 @@ interface IERC404 is IERC165 {
   error InvalidOperator();
   error UnsafeRecipient();
   error RecipientIsERC721TransferExempt();
-  error SenderIsERC721TransferExempt();
   error Unauthorized();
   error InsufficientAllowance();
   error DecimalsTooLow();
-  error CannotRemoveFromERC721TransferExempt();
   error PermitDeadlineExpired();
   error InvalidSigner();
   error InvalidApproval();
   error OwnedIndexOverflow();
+  error MintLimitReached();
+  error InvalidExemption();
 
   function name() external view returns (string memory);
   function symbol() external view returns (string memory);
@@ -73,14 +48,30 @@ interface IERC404 is IERC165 {
     address spender_,
     uint256 valueOrId_
   ) external returns (bool);
+  function erc20Approve(
+    address spender_,
+    uint256 value_
+  ) external returns (bool);
+  function erc721Approve(address spender_, uint256 id_) external;
   function setApprovalForAll(address operator_, bool approved_) external;
   function transferFrom(
     address from_,
     address to_,
     uint256 valueOrId_
   ) external returns (bool);
+  function erc20TransferFrom(
+    address from_,
+    address to_,
+    uint256 value_
+  ) external returns (bool);
+  function erc721TransferFrom(address from_, address to_, uint256 id_) external;
   function transfer(address to_, uint256 amount_) external returns (bool);
-  function erc721TokensBankedInQueue() external view returns (uint256);
+  function getERC721QueueLength() external view returns (uint256);
+  function getERC721TokensInQueue(
+    uint256 start_,
+    uint256 count_
+  ) external view returns (uint256[] memory);
+  function setSelfERC721TransferExempt(bool state_) external;
   function safeTransferFrom(address from_, address to_, uint256 id_) external;
   function safeTransferFrom(
     address from_,
