@@ -137,6 +137,12 @@ async function main() {
   } else {
     console.log("Skipping full check")
   }
+
+  const balancesFilename = `balances-${await pandoraContract.getAddress()}-${startBlock}-${endBlock}.json`
+
+  // Store the results in a file
+  fs.writeFileSync(`tmp/${balancesFilename}`, JSON.stringify(balances, null, 2))
+  console.log("Saved balances to file", balancesFilename)
 }
 
 /**
