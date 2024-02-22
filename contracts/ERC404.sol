@@ -12,7 +12,7 @@ abstract contract ERC404 is IERC404 {
   using DoubleEndedQueue for DoubleEndedQueue.Uint256Deque;
 
   /// @dev The queue of ERC-721 tokens stored in the contract.
-  DoubleEndedQueue.Uint256Deque private _storedERC721Ids;
+  DoubleEndedQueue.Uint256Deque internal _storedERC721Ids;
 
   /// @dev Token name
   string public name;
