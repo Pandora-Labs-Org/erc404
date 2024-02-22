@@ -4,6 +4,15 @@ import { HardhatUserConfig } from "hardhat/config"
 import "@nomicfoundation/hardhat-toolbox"
 import "hardhat-gas-reporter"
 
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+interface BigInt {
+  /** Convert to BigInt to string form in JSON.stringify */
+  toJSON: () => string
+}
+BigInt.prototype.toJSON = function () {
+  return this.toString()
+}
+
 const config: HardhatUserConfig = {
   solidity: { compilers: [{ version: "0.8.20" }, { version: "0.4.18" }] },
   gasReporter: {
