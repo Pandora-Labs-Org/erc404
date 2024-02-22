@@ -2,6 +2,7 @@ import { ethers } from "hardhat"
 import fs from "fs"
 import { StandardMerkleTree } from "@openzeppelin/merkle-tree"
 import * as ss from "simple-statistics"
+import csv from "csv-stringify/sync"
 
 /**
  * Will cache the events in a file and load them from there if the file exists. Otherwise, it will query the contract for the events and store them in a file.
@@ -419,6 +420,17 @@ async function main() {
     availableAirdropAmount,
     fullTokenHolderMultiplier, // multiplier for balances >= 1 PANDORA
   )
+
+  // Store the airdrop distribution in a file.
+  const airdropDistributionFilename = `airdrop-distribution-${await pandoraContract.getAddress()}-${startBlock}-${endBlock}.json`
+
+  // Save as a CSV using csv-stringify
+  const records = Object.entries(airdropDistribution).map(
+    ([address, amount]) => [address, ethers.formatEther(amount)],
+  )
+  const csvString = await csv.stringify(records)
+  fs.writeFileSync(`tmp/${airdropDistributionFilename}.csv`, csvString)
+  console.log("Saved airdrop distribution to file", airdropDistributionFilename)
 
   // Generate the merkle tree.
   const tree = await generateMerkleTree(airdropDistribution)

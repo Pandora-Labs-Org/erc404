@@ -18,6 +18,7 @@
     "@uniswap/v2-periphery": "1.1.0-beta.0",
     "@uniswap/v3-core": "^1.0.1",
     "@uniswap/v3-periphery": "^1.4.4",
+    "csv-stringify": "^6.4.5",
     "currency.js": "^2.0.4",
     "dotenv": "^16.4.3",
     "simple-statistics": "^7.8.3",
