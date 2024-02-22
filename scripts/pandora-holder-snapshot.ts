@@ -242,20 +242,10 @@ function calculateAirdropDistribution(
   return airdropDistribution
 }
 
-async function peapodsSnapshot(endBlock: number) {
-  // Configuration.
-  const startBlock = 19167200
-  const pandoraPodMainnetAddress = "0xf109BA50e6697F2579d5B073f347520373C2ADb3"
-
-  // Connect to the deployed mainnet Pandora Pod contract using a MockERC20 interface.
-  const pandoraPodFactory = await ethers.getContractFactory("MockERC20")
-  const pandoraPodContract = await pandoraPodFactory.attach(
-    pandoraPodMainnetAddress,
-  )
-
+async function peapodsSnapshot(contract, startBlock: number, endBlock: number) {
   //  First load the events.
   const events = await loadOrGenerateEventsFile(
-    pandoraPodContract,
+    contract,
     startBlock,
     endBlock,
     false,
@@ -323,8 +313,41 @@ async function main() {
   console.log("Saved unfiltered balances to file", balancesFilename)
 
   if (includePeapods) {
+    // Configuration.
+    const podStartBlock = 19167200
+    const pandoraPodMainnetAddress =
+      "0xf109BA50e6697F2579d5B073f347520373C2ADb3"
+
+    // Connect to the deployed mainnet Pandora Pod contract using a MockERC20 interface.
+    const pandoraPodFactory = await ethers.getContractFactory("MockERC20")
+    const pandoraPodContract = await pandoraPodFactory.attach(
+      pandoraPodMainnetAddress,
+    )
+
     // Take Pandora peapods snapshot
-    const pandoraPeapodsBalances = await peapodsSnapshot(endBlock)
+    const pandoraPeapodsBalances = await peapodsSnapshot(
+      pandoraPodContract,
+      podStartBlock,
+      endBlock,
+    )
+
+    // Check that the sum of all balances is equal to the PANDORA balance in the contract
+    const sum = Object.values(pandoraPeapodsBalances).reduce(
+      (acc, value) => acc + value,
+      0n,
+    )
+    const contractBalance = await pandoraContract.balanceOf(
+      pandoraPodMainnetAddress,
+      {
+        blockTag: endBlock,
+      },
+    )
+
+    console.log("Sum of all pPDRA balances:", ethers.formatEther(sum))
+    console.log(
+      "PANDORA balance of pPDRA contract:",
+      ethers.formatEther(contractBalance),
+    )
 
     // Merge the two balance sets.
     for (const [address, balance] of Object.entries(pandoraPeapodsBalances)) {
