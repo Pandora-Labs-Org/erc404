@@ -14,7 +14,7 @@ abstract contract ERC404U16 is IERC404 {
   using PackedDoubleEndedQueue for PackedDoubleEndedQueue.Uint16Deque;
 
   /// @dev The queue of ERC-721 tokens stored in the contract.
-  PackedDoubleEndedQueue.Uint16Deque private _storedERC721Ids;
+  PackedDoubleEndedQueue.Uint16Deque internal _storedERC721Ids;
 
   /// @dev Token name
   string public name;
