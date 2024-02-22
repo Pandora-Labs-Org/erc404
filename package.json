@@ -1,5 +1,5 @@
 {
-  "name": "ERC404",
+  "name": "ERC-404",
   "version": "0.0.1",
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.4",
@@ -13,6 +13,7 @@
   "dependencies": {
     "@nomicfoundation/hardhat-verify": "^2.0.4",
     "@openzeppelin/contracts": "^5.0.1",
+    "@openzeppelin/merkle-tree": "^1.0.6",
     "@uniswap/v2-core": "^1.0.1",
     "@uniswap/v2-periphery": "1.1.0-beta.0",
     "@uniswap/v3-core": "^1.0.1",

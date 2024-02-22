@@ -1,5 +1,6 @@
 import { ethers } from "hardhat"
 import fs from "fs"
+import { StandardMerkleTree } from "@openzeppelin/merkle-tree"
 
 /**
  * Will cache the events in a file and load them from there if the file exists. Otherwise, it will query the contract for the events and store them in a file.
@@ -106,6 +107,21 @@ async function performFullCheck(contract, pandoraDeployer, balances, endBlock) {
   }
 }
 
+async function generateMerkleTree(balances) {
+  const flattenedBalances = Object.entries(balances).map(
+    ([address, balance]) => {
+      return [address, balance]
+    },
+  )
+
+  const tree = StandardMerkleTree.of(flattenedBalances, [
+    "address", // claimer
+    "uint256", // totalValue
+  ])
+
+  return tree
+}
+
 /**
  * Main function.
  */
@@ -140,9 +156,63 @@ async function main() {
 
   const balancesFilename = `balances-${await pandoraContract.getAddress()}-${startBlock}-${endBlock}.json`
 
-  // Store the results in a file
+  // Store the balances in a file.
   fs.writeFileSync(`tmp/${balancesFilename}`, JSON.stringify(balances, null, 2))
   console.log("Saved balances to file", balancesFilename)
+
+  // Filtering step -- this is business logic specific area where you can filter out addresses that you don't want to include in the snapshot.
+  // Remove the deployer (he has a negative balance due to the initial minting).
+  const filteredBalances = await filterBalances(balances, [
+    pandoraDeployer,
+    await pandoraContract.getAddress(),
+  ])
+
+  // Generate the merkle tree.
+  const tree = await generateMerkleTree(filteredBalances)
+
+  // Store the merkle tree in a file.
+  const treeFilename = `tree-${await pandoraContract.getAddress()}-${startBlock}-${endBlock}.json`
+  fs.writeFileSync(`tmp/${treeFilename}`, JSON.stringify(tree, null, 2))
+  console.log("Saved merkle tree to file", treeFilename)
+
+  // Print the merkle tree root.
+  console.log("Merkle root:", tree.root)
+
+  console.log("Done")
+}
+
+async function filterBalances(balances, badAddresses) {
+  const filteredBalances = { ...balances }
+
+  // Remove Uniswap V2 PANDORA+WETH pool.
+  const uniswapV2Pool = "0xdc900845732a53eE8Df737EfA282A6Bc56976e62"
+  // Remove all active Uniswap V3 PANDORA+WETH pools.
+  const uniswapV3Pools = [
+    "0x1dF4C6e36d61416813B42fE32724eF11e363EDDc", // 1% fee tier
+  ]
+
+  // Add some extra bad addresses.
+  const finalBadAddresses = [
+    ...badAddresses,
+    uniswapV2Pool,
+    ...uniswapV3Pools,
+    ethers.ZeroAddress,
+    "0x000000000000000000000000000000000000dEaD",
+  ]
+
+  // Remove the bad addresses.
+  finalBadAddresses.forEach((address) => {
+    delete filteredBalances[address]
+  })
+
+  // Delete entires with a balance < 1 PANDORA.
+  for (const [address, balance] of Object.entries(filteredBalances)) {
+    if (BigInt(balance) < ethers.parseEther("1")) {
+      delete filteredBalances[address]
+    }
+  }
+
+  return filteredBalances
 }
 
 /**
