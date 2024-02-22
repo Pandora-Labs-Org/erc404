@@ -1,6 +1,7 @@
 import { ethers } from "hardhat"
 import fs from "fs"
 import { StandardMerkleTree } from "@openzeppelin/merkle-tree"
+import * as ss from "simple-statistics"
 
 /**
  * Will cache the events in a file and load them from there if the file exists. Otherwise, it will query the contract for the events and store them in a file.
@@ -82,7 +83,12 @@ function processEvents(events) {
 /**
  * An optional full check to ensure the balances are correct by querying the contract for the balances at the cutoff block height.
  */
-async function performFullCheck(contract, pandoraDeployer, balances, endBlock) {
+async function performFullOnchainBalanceCheck(
+  contract,
+  pandoraDeployer,
+  balances,
+  endBlock,
+) {
   const numberOfAddresses = Object.keys(balances).length
   let i = 0
 
@@ -107,6 +113,11 @@ async function performFullCheck(contract, pandoraDeployer, balances, endBlock) {
   }
 }
 
+/**
+ * Generates a merkle tree from the balances.
+ * @param balances
+ * @returns
+ */
 async function generateMerkleTree(balances) {
   const flattenedBalances = Object.entries(balances).map(
     ([address, balance]) => {
@@ -123,73 +134,13 @@ async function generateMerkleTree(balances) {
 }
 
 /**
- * Main function.
+ * Filters out addresses that should not be included in the snapshot.
+ * @param balances
+ * @param badAddresses
+ * @param cutoff
+ * @returns
  */
-async function main() {
-  const startBlock = 19139822
-  const endBlock = 19279784
-  const pandoraDeployer = "0xbC17fBf63177bC1110f460c4B1386f230d0Fcef3"
-  const runCheck = false
-  const pandoraFactory = await ethers.getContractFactory("Pandora")
-
-  // Connect to the deployed mainnet contract.
-  const pandoraMainnetAddress = "0x9E9FbDE7C7a83c43913BddC8779158F1368F0413"
-  const pandoraContract = await pandoraFactory.attach(pandoraMainnetAddress)
-
-  //  First load the events.
-  const events = await loadOrGenerateEventsFile(
-    pandoraContract,
-    startBlock,
-    endBlock,
-  )
-
-  // Then process the events.
-  console.log(`Loaded ${events.length} events`)
-  const balances = processEvents(events)
-
-  if (runCheck) {
-    console.log("Performing full check")
-    await performFullCheck(pandoraContract, pandoraDeployer, balances, endBlock)
-  } else {
-    console.log("Skipping full check")
-  }
-
-  const balancesFilename = `unfiltered-balances-${await pandoraContract.getAddress()}-${startBlock}-${endBlock}.json`
-
-  // Store the balances in a file.
-  fs.writeFileSync(`tmp/${balancesFilename}`, JSON.stringify(balances, null, 2))
-  console.log("Saved unfiltered balances to file", balancesFilename)
-
-  // Filtering step -- this is business logic specific area where you can filter out addresses that you don't want to include in the snapshot.
-  // Remove the deployer (he has a negative balance due to the initial minting).
-  const filteredBalances = await filterBalances(balances, [
-    pandoraDeployer,
-    await pandoraContract.getAddress(),
-  ])
-
-  // Store the filtered balances in a file.
-  const filteredBalancesFilename = `filtered-balances-${await pandoraContract.getAddress()}-${startBlock}-${endBlock}.json`
-  fs.writeFileSync(
-    `tmp/${filteredBalancesFilename}`,
-    JSON.stringify(filteredBalances, null, 2),
-  )
-  console.log("Saved filtered balances to file", filteredBalancesFilename)
-
-  // Generate the merkle tree.
-  const tree = await generateMerkleTree(filteredBalances)
-
-  // Store the merkle tree in a file.
-  const treeFilename = `tree-${await pandoraContract.getAddress()}-${startBlock}-${endBlock}.json`
-  fs.writeFileSync(`tmp/${treeFilename}`, JSON.stringify(tree.dump()))
-  console.log("Saved merkle tree to file", treeFilename)
-
-  // Print the merkle tree root.
-  console.log("Merkle root:", tree.root)
-
-  console.log("Done")
-}
-
-async function filterBalances(balances, badAddresses) {
+async function filterBalances(balances, badAddresses, cutoff) {
   const filteredBalances = { ...balances }
 
   // Remove Uniswap V2 PANDORA+WETH pool.
@@ -213,14 +164,187 @@ async function filterBalances(balances, badAddresses) {
     delete filteredBalances[address]
   })
 
-  // Delete entires with a balance < 1 PANDORA.
+  // Delete entires with a balance < the cutoff in PANDORA.
   for (const [address, balance] of Object.entries(filteredBalances)) {
-    if (BigInt(balance) < ethers.parseEther("1")) {
+    if (BigInt(balance) < cutoff) {
       delete filteredBalances[address]
     }
   }
 
   return filteredBalances
+}
+
+function calculateAirdropDistribution(
+  balances: Record<string, bigint>,
+  availableAirdropAmount: bigint,
+  fullTokenMultiplier: bigint = 2n,
+): Record<string, bigint> {
+  // Use a large factor for precision in division.
+  const precisionFactor = BigInt(10 ** 18)
+
+  // Balances >= 1 PANDORA get a 2x multiplier.
+  for (const address in balances) {
+    const oneEtherInWei = ethers.parseEther("1")
+    if (balances[address] >= oneEtherInWei) {
+      balances[address] = balances[address] * fullTokenMultiplier
+    }
+  }
+
+  // Calculate the total balance.
+  const totalBalance = Object.values(balances).reduce(
+    (acc, balance) => acc + balance,
+    0n,
+  )
+
+  console.log("Total balance:", ethers.formatEther(totalBalance))
+
+  const airdropDistribution: Record<string, bigint> = {}
+
+  for (const address in balances) {
+    // Calculate the share of each balance in basis points to avoid floating-point operations.
+    const balancePercentage =
+      (balances[address] * precisionFactor) / totalBalance
+    // Calculate the airdrop amount for each address.
+    airdropDistribution[address] =
+      (balancePercentage * availableAirdropAmount) / precisionFactor
+  }
+
+  // Debug: Sum of airdrop distribution to compare to available airdrop amount.
+  const sum = Object.values(airdropDistribution).reduce(
+    (acc, value) => acc + value,
+    0n,
+  )
+
+  console.log("Total airdrop distribution:", ethers.formatEther(sum))
+  console.log(
+    "Available airdrop amount:",
+    ethers.formatEther(availableAirdropAmount),
+  )
+
+  return airdropDistribution
+}
+
+/**
+ * Main function.
+ */
+async function main() {
+  const startBlock = 19139822
+  const endBlock = 19279784
+  const pandoraDeployer = "0xbC17fBf63177bC1110f460c4B1386f230d0Fcef3"
+  const runFullOnchainBalanceCheck = false
+  const pandoraFactory = await ethers.getContractFactory("Pandora")
+
+  // Connect to the deployed mainnet contract.
+  const pandoraMainnetAddress = "0x9E9FbDE7C7a83c43913BddC8779158F1368F0413"
+  const pandoraContract = await pandoraFactory.attach(pandoraMainnetAddress)
+
+  //  First load the events.
+  const events = await loadOrGenerateEventsFile(
+    pandoraContract,
+    startBlock,
+    endBlock,
+  )
+
+  // Then process the events.
+  console.log(`Loaded ${events.length} events`)
+  const balances = processEvents(events)
+
+  if (runFullOnchainBalanceCheck) {
+    console.log("Performing full on-chain balance check")
+    await performFullOnchainBalanceCheck(
+      pandoraContract,
+      pandoraDeployer,
+      balances,
+      endBlock,
+    )
+  } else {
+    console.log("Skipping full on-chain balance check")
+  }
+
+  // Check -- Make sure that there are no duplicate addresses.
+  const uniqueAddresses = new Set(Object.keys(balances))
+  if (uniqueAddresses.size !== Object.keys(balances).length) {
+    throw new Error("Duplicate addresses found")
+  }
+
+  const balancesFilename = `unfiltered-balances-${await pandoraContract.getAddress()}-${startBlock}-${endBlock}.json`
+
+  // Store the balances in a file.
+  fs.writeFileSync(`tmp/${balancesFilename}`, JSON.stringify(balances, null, 2))
+  console.log("Saved unfiltered balances to file", balancesFilename)
+
+  // Filtering step -- this is business logic specific area where you can filter out addresses that you don't want to include in the snapshot.
+  // Remove the deployer (he has a negative balance due to the initial minting).
+  const airdropCutoff = ethers.parseEther("0.01")
+
+  const filteredBalances = await filterBalances(
+    balances,
+    [pandoraDeployer, await pandoraContract.getAddress()],
+    airdropCutoff,
+  )
+
+  // Perform some sanity checks.
+  // Make sure that no address has a negative balance.
+  for (const [address, balance] of Object.entries(filteredBalances)) {
+    if (balance < 0n) {
+      throw new Error(`Negative balance found for ${address}`)
+    }
+  }
+
+  // Store the filtered balances in a file.
+  const filteredBalancesFilename = `filtered-balances-${await pandoraContract.getAddress()}-${startBlock}-${endBlock}.json`
+  fs.writeFileSync(
+    `tmp/${filteredBalancesFilename}`,
+    JSON.stringify(filteredBalances, null, 2),
+  )
+  console.log("Saved filtered balances to file", filteredBalancesFilename)
+
+  // Generate descriptive statistics.
+  // Map balaces to a flat array of just the balance values for stats.
+  const balanceValues = Object.values(filteredBalances).map((balance) =>
+    Number(ethers.formatEther(balance)),
+  )
+
+  // save to a csv file
+  const csvFilename = `balances-${await pandoraContract.getAddress()}-${startBlock}-${
+    endBlock - 1
+  }.csv`
+
+  const csvData = balanceValues.join("\n")
+  fs.writeFileSync(`tmp/${csvFilename}`, csvData)
+
+  console.log("Saved balance values to file", csvFilename)
+
+  const airdropQualifyingAddresses = Object.keys(filteredBalances).length
+
+  console.log("Airdrop qualifying addresses:", airdropQualifyingAddresses)
+
+  const fullTokenHolders = Object.values(filteredBalances).filter(
+    (balance) => balance >= ethers.parseEther("1"),
+  ).length
+
+  console.log("Full token holders:", fullTokenHolders)
+
+  // Calculate the airdrop distribution.
+  const availableAirdropAmount = ethers.parseEther("349")
+  const airdropDistribution = calculateAirdropDistribution(
+    filteredBalances,
+    availableAirdropAmount,
+    1n, // multiplier for balances >= 1 PANDORA
+  )
+
+  // Generate the merkle tree.
+  const tree = await generateMerkleTree(airdropDistribution)
+
+  // Store the merkle tree in a file.
+  const treeFilename = `tree-${await pandoraContract.getAddress()}-${startBlock}-${endBlock}.json`
+  fs.writeFileSync(`tmp/${treeFilename}`, JSON.stringify(tree.dump()))
+  console.log("Saved merkle tree to file", treeFilename)
+
+  // Print the merkle tree root.
+  console.log("Merkle root:", tree.root)
+
+  console.log("Done")
 }
 
 /**
