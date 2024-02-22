@@ -1,4 +1,5 @@
 import "dotenv/config"
+
 import { HardhatUserConfig } from "hardhat/config"
 import "@nomicfoundation/hardhat-toolbox"
 import "hardhat-gas-reporter"
@@ -13,6 +14,10 @@ const config: HardhatUserConfig = {
   networks: {
     sepolia: {
       url: `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+      accounts: [process.env.SEPOLIA_PRIVATE_KEY_1],
+    },
+    mainnet: {
+      url: `https://eth-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
       accounts: [process.env.SEPOLIA_PRIVATE_KEY_1],
     },
   },
