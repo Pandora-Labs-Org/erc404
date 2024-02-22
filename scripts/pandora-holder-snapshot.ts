@@ -270,8 +270,13 @@ async function main() {
   const airdropCutoff = ethers.parseEther("0.01")
   const pandoraMultisig = "0x508894ABC5905eBE8c5B6D6EcaA0Fe24Bb63aB0b"
   const lockup = "0xAFb979d9afAd1aD27C5eFf4E27226E3AB9e5dCC9"
-  const includePeapods = true
   const pandoraMainnetAddress = "0x9E9FbDE7C7a83c43913BddC8779158F1368F0413"
+  const fullTokenHolderMultiplier = 2n
+  const availableAirdropAmount = ethers.parseEther("349")
+  // Peapods
+  const includePeapods = true
+  const podStartBlock = 19167200
+  const pandoraPodMainnetAddress = "0xf109BA50e6697F2579d5B073f347520373C2ADb3"
 
   // Connect to the deployed mainnet Pandora contract.
   const pandoraFactory = await ethers.getContractFactory("Pandora")
@@ -313,11 +318,6 @@ async function main() {
   console.log("Saved unfiltered balances to file", balancesFilename)
 
   if (includePeapods) {
-    // Configuration.
-    const podStartBlock = 19167200
-    const pandoraPodMainnetAddress =
-      "0xf109BA50e6697F2579d5B073f347520373C2ADb3"
-
     // Connect to the deployed mainnet Pandora Pod contract using a MockERC20 interface.
     const pandoraPodFactory = await ethers.getContractFactory("MockERC20")
     const pandoraPodContract = await pandoraPodFactory.attach(
@@ -414,11 +414,10 @@ async function main() {
   console.log("Full token holders:", fullTokenHolders)
 
   // Calculate the airdrop distribution.
-  const availableAirdropAmount = ethers.parseEther("349")
   const airdropDistribution = calculateAirdropDistribution(
     filteredBalances,
     availableAirdropAmount,
-    1n, // multiplier for balances >= 1 PANDORA
+    fullTokenHolderMultiplier, // multiplier for balances >= 1 PANDORA
   )
 
   // Generate the merkle tree.
