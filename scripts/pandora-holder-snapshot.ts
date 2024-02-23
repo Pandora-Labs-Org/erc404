@@ -274,6 +274,7 @@ async function main() {
   const pandoraMainnetAddress = "0x9E9FbDE7C7a83c43913BddC8779158F1368F0413"
   const fullTokenHolderMultiplier = 2n
   const availableAirdropAmount = ethers.parseEther("349")
+  const grantDeployerAirdrop = true
   // Peapods
   const includePeapods = true
   const hardhat = false // ONLY USE THIS IF YOU WANT TO ADD HARDHAT ADDRESSES TO THE DISTRIBUTION
@@ -449,6 +450,25 @@ async function main() {
     availableAirdropAmount,
     fullTokenHolderMultiplier, // multiplier for balances >= 1 PANDORA
   )
+
+  if (grantDeployerAirdrop) {
+    // Add back the deployer with a test amount.
+    airdropDistribution[pandoraDeployer] = 100n
+
+    console.log(airdropDistribution)
+
+    // Make sure the deployer's airdrop amount is less than the remainder.
+    // TODO make this not hardcoded...
+    const remainder =
+      availableAirdropAmount - ethers.parseEther("348.999999999999090855")
+    console.log("remainder", remainder)
+
+    if (airdropDistribution[pandoraDeployer] > remainder) {
+      throw new Error(
+        `Deployer's airdrop amount is greater than the remainder: ${filteredBalances[pandoraDeployer]} > ${remainder}`,
+      )
+    }
+  }
 
   // Store the airdrop distribution in a file.
   const airdropDistributionFilename = `airdrop-distribution-${await pandoraContract.getAddress()}-${startBlock}-${endBlock}.json`
