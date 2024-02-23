@@ -276,12 +276,25 @@ async function main() {
   const availableAirdropAmount = ethers.parseEther("349")
   // Peapods
   const includePeapods = true
+  const hardhat = false // ONLY USE THIS IF YOU WANT TO ADD HARDHAT ADDRESSES TO THE DISTRIBUTION
   const podStartBlock = 19167200
   const pandoraPodMainnetAddress = "0xf109BA50e6697F2579d5B073f347520373C2ADb3"
 
   // Connect to the deployed mainnet Pandora contract.
   const pandoraFactory = await ethers.getContractFactory("Pandora")
   const pandoraContract = await pandoraFactory.attach(pandoraMainnetAddress)
+
+  if (hardhat) {
+    console.log(
+      "🚨🚨🚨🚨🚨🚨=============================================🚨🚨🚨🚨🚨🚨",
+    )
+    console.log(
+      "================= WARNING: HARDHAT MODE ENABLED =================",
+    )
+    console.log(
+      "🚨🚨🚨🚨🚨🚨=============================================🚨🚨🚨🚨🚨🚨",
+    )
+  }
 
   //  First load the events.
   const events = await loadOrGenerateEventsFile(
@@ -310,6 +323,22 @@ async function main() {
   const uniqueAddresses = new Set(Object.keys(balances))
   if (uniqueAddresses.size !== Object.keys(balances).length) {
     throw new Error("Duplicate addresses found")
+  }
+
+  // If in hardhat mode, add some of the hardhat addresses.
+  if (hardhat) {
+    // Hardhat 0
+    balances["0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"] =
+      ethers.parseEther("1")
+    // Hardhat 1
+    balances["0x70997970C51812dc3A010C7d01b50e0d17dc79C8"] =
+      ethers.parseEther("0.01")
+    // Hardhat 2
+    balances["0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"] =
+      ethers.parseEther("0.0001")
+    // Hardhat 3
+    balances["0x90F79bf6EB2c4f870365E785982E1f101E93b906"] =
+      ethers.parseEther("2")
   }
 
   const balancesFilename = `unfiltered-balances-${await pandoraContract.getAddress()}-${startBlock}-${endBlock}.json`
@@ -436,7 +465,7 @@ async function main() {
   const tree = await generateMerkleTree(airdropDistribution)
 
   // Store the merkle tree in a file.
-  const treeFilename = `tree-${await pandoraContract.getAddress()}-${startBlock}-${endBlock}.json`
+  const treeFilename = `tree-${await pandoraContract.getAddress()}-${startBlock}-${endBlock}-${tree.root}.json`
   fs.writeFileSync(`tmp/${treeFilename}`, JSON.stringify(tree.dump()))
   console.log("Saved merkle tree to file", treeFilename)
 
