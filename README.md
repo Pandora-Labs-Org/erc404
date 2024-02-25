@@ -43,7 +43,7 @@ To deploy your own ERC-404 token, look at the example provided in the src folder
 
 This is an extremely simple minimal version of an ERC-404 that mints the entire supply to the initial owner of the contract.
 
-Generally the initial tokens minted to the deployer will be added to a DEX as liquidity. The DEX pool address should also be added to the whitelist to prevent minting NFTs to it and burning NFTs from it on transfer.
+Generally the initial tokens minted to the deployer will be added to a DEX as liquidity. The DEX pool address should also be added to the whitelist to prevent sending NFTs to it.
 
 ## Uniswap V3
 
