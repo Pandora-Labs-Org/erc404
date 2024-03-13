@@ -22,6 +22,8 @@
     "solhint": "^4.1.1"
   },
   "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
     "prettier": "prettier --write --plugin=prettier-plugin-solidity 'contracts/**/*.sol'"
   }
 }
