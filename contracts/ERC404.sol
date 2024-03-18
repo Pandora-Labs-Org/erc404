@@ -812,7 +812,7 @@ abstract contract ERC404 is IERC404 {
     assembly {
       data := add(
         and(data, _BITMASK_ADDRESS),
-        and(shl(160, index_), _BITMASK_OWNED_INDEX)
+        shl(160, index_)
       )
     }
 
